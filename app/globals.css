@@ -1,0 +1,55 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+  --font-display: "Arial Narrow", "Avenir Next Condensed", Impact, sans-serif;
+  --font-body: "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply bg-ink text-smoke antialiased;
+  font-family: var(--font-body);
+  background-image:
+    radial-gradient(circle at top left, rgba(245, 196, 0, 0.18), transparent 24rem),
+    radial-gradient(circle at bottom right, rgba(245, 196, 0, 0.1), transparent 18rem),
+    linear-gradient(180deg, #050505 0%, #0d0d0d 100%);
+}
+
+a {
+  @apply transition-colors duration-200;
+}
+
+::selection {
+  background: rgba(245, 196, 0, 0.35);
+  color: #ffffff;
+}
+
+.panel {
+  @apply rounded-[2rem] border border-white/10 bg-white/5 backdrop-blur;
+}
+
+.panel-dark {
+  @apply rounded-[2rem] border border-gold/20 bg-black/60 shadow-glow;
+}
+
+.eyebrow {
+  @apply text-xs font-semibold uppercase tracking-[0.35em] text-gold;
+}
+
+.headline {
+  @apply font-bold uppercase tracking-tight text-white;
+}
+
+.page-shell {
+  @apply mx-auto w-full max-w-7xl px-4 pb-16 pt-6 sm:px-6 lg:px-8;
+}
+
+.admin-grid {
+  @apply grid gap-6 lg:grid-cols-[260px_minmax(0,1fr)];
+}
