@@ -40,10 +40,11 @@ export default async function HomePage({
         <div className="page-shell grid min-h-[78vh] items-end gap-10 py-10 lg:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
           <div className="min-w-0 space-y-8 text-center lg:text-left">
             <p className="eyebrow">{dictionary.common.season} {activeSeason.label}</p>
-            <div className="mx-auto max-w-5xl lg:mx-0">
-              <h1 className="mx-auto max-w-[9ch] font-[var(--font-display)] text-[clamp(3.2rem,9vw,7.2rem)] uppercase leading-[0.9] tracking-[0.02em] text-white lg:mx-0">
-                <span className="block">Comunica</span>
-                <span className="block">ciones</span>
+            <div className="mx-auto max-w-5xl overflow-hidden lg:mx-0">
+              <h1 className="mx-auto max-w-[7.4ch] font-[var(--font-display)] text-[clamp(3.4rem,8vw,6.4rem)] uppercase leading-[0.88] tracking-[0.015em] text-white lg:mx-0 lg:max-w-none lg:whitespace-nowrap lg:text-[clamp(3.8rem,5vw,5.15rem)] lg:tracking-[0.005em]">
+                <span className="block lg:hidden">Comunica</span>
+                <span className="block lg:hidden">ciones</span>
+                <span className="hidden lg:block">Comunicaciones</span>
               </h1>
               <p className="mt-5 max-w-2xl text-lg leading-8 text-white/70 lg:max-w-2xl">
                 {localizeText(locale, settings.tagline)}
