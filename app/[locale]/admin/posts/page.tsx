@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { AdminModal } from "@/components/admin-modal";
 import { AdminShell } from "@/components/admin-shell";
+import { ImageUploadField } from "@/components/image-upload-field";
 import { deletePostAction, savePostAction } from "@/lib/admin-actions";
 import { getSiteData, sortPosts } from "@/lib/content";
 import { getDictionary, isLocale, toLocalDateTimeInputValue } from "@/lib/i18n";
@@ -68,12 +69,15 @@ function PostForm({
           className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white"
         />
       </div>
-      <input
-        name="coverImage"
-        defaultValue={post?.coverImage ?? ""}
-        placeholder="Cover image URL"
-        className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white"
-      />
+      <div className="grid gap-4">
+        <ImageUploadField label="Post cover" name="coverImageFile" />
+        <input
+          name="coverImage"
+          defaultValue={post?.coverImage ?? ""}
+          placeholder="Existing cover URL (optional fallback)"
+          className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white"
+        />
+      </div>
       <input
         name="titleEs"
         required

@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { AdminModal } from "@/components/admin-modal";
 import { AdminShell } from "@/components/admin-shell";
+import { ImageUploadField } from "@/components/image-upload-field";
 import { SquadSwitch } from "@/components/squad-switch";
 import { getSiteData, resolveSelectedSquad, sortPlayers } from "@/lib/content";
 import { deletePlayerAction, savePlayerAction } from "@/lib/admin-actions";
@@ -104,12 +105,15 @@ function PlayerForm({
         placeholder="Hometown"
         className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white"
       />
-      <input
-        name="photo"
-        defaultValue={player?.photo ?? ""}
-        placeholder="Photo URL"
-        className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white"
-      />
+      <div className="grid gap-4">
+        <ImageUploadField label="Player photo" name="photoFile" />
+        <input
+          name="photo"
+          defaultValue={player?.photo ?? ""}
+          placeholder="Existing photo URL (optional fallback)"
+          className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white"
+        />
+      </div>
       <textarea
         name="bioEs"
         defaultValue={player?.bio.es ?? ""}
