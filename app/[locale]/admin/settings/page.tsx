@@ -1,4 +1,5 @@
 import { AdminShell } from "@/components/admin-shell";
+import { ImageUploadField } from "@/components/image-upload-field";
 import { getSiteData } from "@/lib/content";
 import { saveSiteSettingsAction } from "@/lib/admin-actions";
 import { getDictionary, isLocale } from "@/lib/i18n";
@@ -32,7 +33,14 @@ export default async function AdminSettingsPage({
           <input name="shortName" defaultValue={data.settings.shortName} placeholder="Short name" className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white" />
           <input name="primaryColor" defaultValue={data.settings.primaryColor} placeholder="Primary color" className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white" />
           <input name="secondaryColor" defaultValue={data.settings.secondaryColor} placeholder="Secondary color" className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white" />
-          <input name="heroImage" defaultValue={data.settings.heroImage} placeholder="Hero image URL" className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white xl:col-span-2" />
+          <div className="xl:col-span-2">
+            <ImageUploadField label="Hero image" name="heroImageFile" />
+          </div>
+          <input name="heroImage" defaultValue={data.settings.heroImage} placeholder="Existing hero image URL (optional fallback)" className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white xl:col-span-2" />
+          <div className="xl:col-span-2">
+            <ImageUploadField label="Logo mark" name="logoFile" />
+          </div>
+          <input name="logo" defaultValue={data.settings.logoMark} placeholder="Existing logo URL (optional fallback)" className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white xl:col-span-2" />
           <textarea name="taglineEs" defaultValue={data.settings.tagline.es} placeholder="Tagline ES" rows={3} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white" />
           <textarea name="taglineEn" defaultValue={data.settings.tagline.en} placeholder="Tagline EN" rows={3} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white" />
           <textarea name="missionEs" defaultValue={data.settings.mission.es} placeholder="Mission ES" rows={4} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white" />
