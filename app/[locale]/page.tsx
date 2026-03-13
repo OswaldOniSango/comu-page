@@ -7,16 +7,20 @@ import { PlayerCard } from "@/components/player-card";
 import { PostCard } from "@/components/post-card";
 import { SectionHeading } from "@/components/section-heading";
 import { StatCard } from "@/components/stat-card";
+import { SquadSwitch } from "@/components/squad-switch";
 import { getHomePayload, localizeText } from "@/lib/content";
 import { formatDate, isLocale } from "@/lib/i18n";
 import { notFound } from "next/navigation";
 
 export default async function HomePage({
-  params
+  params,
+  searchParams
 }: {
   params: Promise<{ locale: string }>;
+  searchParams: Promise<{ squad?: string }>;
 }) {
   const { locale } = await params;
+  const query = await searchParams;
   if (!isLocale(locale)) {
     notFound();
   }
@@ -25,13 +29,15 @@ export default async function HomePage({
     settings,
     dictionary,
     activeSeason,
+    squads,
+    selectedSquad,
     teamStats,
     nextGame,
     latestResult,
     featuredPlayers,
     featuredPosts,
     featuredGalleries
-  } = await getHomePayload(locale);
+  } = await getHomePayload(locale, query.squad);
 
   return (
     <main>
@@ -52,19 +58,24 @@ export default async function HomePage({
             </div>
             <div className="flex flex-wrap justify-center gap-4 lg:justify-start">
               <Link
-                href={`/${locale}/roster`}
+                href={`/${locale}/roster?squad=${selectedSquad.id}`}
                 className="inline-flex items-center gap-2 rounded-full bg-gold px-6 py-3 text-sm font-semibold uppercase tracking-[0.24em] text-ink"
               >
                 {dictionary.home.viewRoster}
                 <ArrowRight className="h-4 w-4" />
               </Link>
               <Link
-                href={`/${locale}/games`}
+                href={`/${locale}/games?squad=${selectedSquad.id}`}
                 className="inline-flex items-center gap-2 rounded-full border border-white/15 px-6 py-3 text-sm font-semibold uppercase tracking-[0.24em] text-white/75"
               >
                 {dictionary.home.viewCalendar}
               </Link>
             </div>
+            <SquadSwitch
+              basePath={`/${locale}`}
+              squads={squads}
+              selectedSquadId={selectedSquad.id}
+            />
             <div className="grid gap-4 text-left sm:grid-cols-3">
               <StatCard label="Record" value={`${teamStats.wins}-${teamStats.losses}`} accent />
               <StatCard label="Runs" value={`${teamStats.runsScored}`} />
@@ -81,18 +92,38 @@ export default async function HomePage({
                   <div className="rounded-full border border-white/10 bg-black/45 px-4 py-2 text-xs uppercase tracking-[0.28em] text-gold">
                     {dictionary.home.nextGame}
                   </div>
-                  <div className="rounded-full border border-white/10 bg-black/45 px-4 py-2 text-xs uppercase tracking-[0.28em] text-white/60">
-                    {formatDate(nextGame.startsAt, locale)}
-                  </div>
+                  {nextGame ? (
+                    <div className="rounded-full border border-white/10 bg-black/45 px-4 py-2 text-xs uppercase tracking-[0.28em] text-white/60">
+                      {formatDate(nextGame.startsAt, locale)}
+                    </div>
+                  ) : null}
                 </div>
                 <div>
-                  <p className="text-sm uppercase tracking-[0.3em] text-white/50">{nextGame.venue}</p>
-                  <h2 className="mt-3 font-[var(--font-display)] text-6xl uppercase leading-none tracking-[0.08em] text-white">
-                    {nextGame.opponent}
-                  </h2>
-                  <p className="mt-4 max-w-lg text-sm leading-7 text-white/70">
-                    {localizeText(locale, nextGame.summary)}
-                  </p>
+                  {nextGame ? (
+                    <>
+                      <p className="text-sm uppercase tracking-[0.3em] text-white/50">{nextGame.venue}</p>
+                      <h2 className="mt-3 font-[var(--font-display)] text-6xl uppercase leading-none tracking-[0.08em] text-white">
+                        {nextGame.opponent}
+                      </h2>
+                      <p className="mt-4 max-w-lg text-sm leading-7 text-white/70">
+                        {localizeText(locale, nextGame.summary)}
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-sm uppercase tracking-[0.3em] text-white/50">
+                        {selectedSquad.code}
+                      </p>
+                      <h2 className="mt-3 font-[var(--font-display)] text-5xl uppercase leading-none tracking-[0.08em] text-white">
+                        {locale === "es" ? "Calendario en preparacion" : "Schedule in progress"}
+                      </h2>
+                      <p className="mt-4 max-w-lg text-sm leading-7 text-white/70">
+                        {locale === "es"
+                          ? `Todavia no hay juegos cargados para ${selectedSquad.code}.`
+                          : `There are no games loaded for ${selectedSquad.code} yet.`}
+                      </p>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -106,22 +137,42 @@ export default async function HomePage({
             <CalendarRange className="h-5 w-5 text-gold" />
             <p className="eyebrow">{dictionary.home.nextGame}</p>
           </div>
-          <h3 className="mt-4 font-[var(--font-display)] text-5xl uppercase tracking-[0.08em] text-white">
-            {nextGame.opponent}
-          </h3>
-          <p className="mt-2 text-white/65">{formatDate(nextGame.startsAt, locale)} • {nextGame.venue}</p>
-          <p className="mt-4 text-sm leading-6 text-white/65">{localizeText(locale, nextGame.summary)}</p>
+          {nextGame ? (
+            <>
+              <h3 className="mt-4 font-[var(--font-display)] text-5xl uppercase tracking-[0.08em] text-white">
+                {nextGame.opponent}
+              </h3>
+              <p className="mt-2 text-white/65">{formatDate(nextGame.startsAt, locale)} • {nextGame.venue}</p>
+              <p className="mt-4 text-sm leading-6 text-white/65">{localizeText(locale, nextGame.summary)}</p>
+            </>
+          ) : (
+            <p className="mt-4 text-sm leading-6 text-white/65">
+              {locale === "es"
+                ? `No hay un proximo juego cargado para ${selectedSquad.code}.`
+                : `There is no next game loaded for ${selectedSquad.code}.`}
+            </p>
+          )}
         </div>
         <div className="panel p-6">
           <div className="flex items-center gap-3">
             <Trophy className="h-5 w-5 text-gold" />
             <p className="eyebrow">{dictionary.home.latestResult}</p>
           </div>
-          <h3 className="mt-4 font-[var(--font-display)] text-5xl uppercase tracking-[0.08em] text-white">
-            {latestResult.homeScore} - {latestResult.awayScore}
-          </h3>
-          <p className="mt-2 text-white/65">{latestResult.opponent}</p>
-          <p className="mt-4 text-sm leading-6 text-white/65">{localizeText(locale, latestResult.summary)}</p>
+          {latestResult ? (
+            <>
+              <h3 className="mt-4 font-[var(--font-display)] text-5xl uppercase tracking-[0.08em] text-white">
+                {latestResult.homeScore} - {latestResult.awayScore}
+              </h3>
+              <p className="mt-2 text-white/65">{latestResult.opponent}</p>
+              <p className="mt-4 text-sm leading-6 text-white/65">{localizeText(locale, latestResult.summary)}</p>
+            </>
+          ) : (
+            <p className="mt-4 text-sm leading-6 text-white/65">
+              {locale === "es"
+                ? `Todavia no hay resultados finales para ${selectedSquad.code}.`
+                : `There are no final results for ${selectedSquad.code} yet.`}
+            </p>
+          )}
         </div>
       </section>
 
@@ -131,11 +182,19 @@ export default async function HomePage({
           title={dictionary.home.featuredPlayers}
           body={localizeText(locale, settings.mission)}
         />
-        <div className="grid gap-6 lg:grid-cols-3">
-          {featuredPlayers.map((player) => (
-            <PlayerCard key={player.id} locale={locale} player={player} />
-          ))}
-        </div>
+        {featuredPlayers.length ? (
+          <div className="grid gap-6 lg:grid-cols-3">
+            {featuredPlayers.map((player) => (
+              <PlayerCard key={`${player.id}-${player.assignment.squadId}`} locale={locale} player={player} />
+            ))}
+          </div>
+        ) : (
+          <div className="panel p-6 text-sm text-white/65">
+            {locale === "es"
+              ? `Todavia no hay jugadores destacados en ${selectedSquad.code}.`
+              : `There are no featured players in ${selectedSquad.code} yet.`}
+          </div>
+        )}
       </section>
 
       <section className="page-shell space-y-8">
@@ -181,9 +240,11 @@ export default async function HomePage({
         </div>
       </section>
 
-      <section className="page-shell">
-        <GameCard locale={locale} game={nextGame} />
-      </section>
+      {nextGame ? (
+        <section className="page-shell">
+          <GameCard locale={locale} game={nextGame} />
+        </section>
+      ) : null}
     </main>
   );
 }

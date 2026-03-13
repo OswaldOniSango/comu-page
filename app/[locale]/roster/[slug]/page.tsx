@@ -7,16 +7,19 @@ import { getDictionary, isLocale } from "@/lib/i18n";
 import { formatNumber } from "@/lib/utils";
 
 export default async function PlayerPage({
-  params
+  params,
+  searchParams
 }: {
   params: Promise<{ locale: string; slug: string }>;
+  searchParams: Promise<{ squad?: string }>;
 }) {
   const { locale, slug } = await params;
+  const query = await searchParams;
   if (!isLocale(locale)) {
     notFound();
   }
 
-  const player = await getPlayerBySlug(slug);
+  const player = await getPlayerBySlug(slug, query.squad);
   if (!player) {
     notFound();
   }
@@ -36,7 +39,10 @@ export default async function PlayerPage({
           />
         </div>
         <div className="space-y-6">
-          <p className="eyebrow">{player.position} • #{player.jerseyNumber}</p>
+          <p className="eyebrow">
+            {player.assignment.squadId.toUpperCase()} • {player.assignment.position} • #
+            {player.assignment.jerseyNumber}
+          </p>
           <h1 className="font-[var(--font-display)] text-7xl uppercase leading-none tracking-[0.08em] text-white">
             {player.firstName} {player.lastName}
           </h1>

@@ -13,9 +13,15 @@ type Props = {
     upcoming: string;
     final: string;
   };
+  emptyLabel?: string;
 };
 
-export function ScheduleBoard({ locale, games, labels }: Props) {
+export function ScheduleBoard({
+  locale,
+  games,
+  labels,
+  emptyLabel = "No hay juegos cargados para este squad todavia."
+}: Props) {
   const [filter, setFilter] = useState<"all" | "scheduled" | "final">("all");
   const filtered = useMemo(() => {
     if (filter === "all") {
@@ -48,11 +54,15 @@ export function ScheduleBoard({ locale, games, labels }: Props) {
           </button>
         ))}
       </div>
-      <div className="grid gap-6 lg:grid-cols-2">
-        {filtered.map((game) => (
-          <GameCard key={game.id} locale={locale} game={game} />
-        ))}
-      </div>
+      {filtered.length ? (
+        <div className="grid gap-6 lg:grid-cols-2">
+          {filtered.map((game) => (
+            <GameCard key={game.id} locale={locale} game={game} />
+          ))}
+        </div>
+      ) : (
+        <div className="panel p-6 text-sm text-white/65">{emptyLabel}</div>
+      )}
     </div>
   );
 }

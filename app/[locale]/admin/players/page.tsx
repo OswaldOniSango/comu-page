@@ -2,7 +2,8 @@ import Link from "next/link";
 
 import { AdminModal } from "@/components/admin-modal";
 import { AdminShell } from "@/components/admin-shell";
-import { getSiteData, sortPlayers } from "@/lib/content";
+import { SquadSwitch } from "@/components/squad-switch";
+import { getSiteData, resolveSelectedSquad, sortPlayers } from "@/lib/content";
 import { deletePlayerAction, savePlayerAction } from "@/lib/admin-actions";
 import { getDictionary, isLocale } from "@/lib/i18n";
 import { requireAdminSession } from "@/lib/session";
@@ -11,11 +12,15 @@ import { notFound } from "next/navigation";
 function PlayerForm({
   locale,
   redirectTo,
+  seasonId,
+  squadId,
   submitLabel,
   player
 }: {
   locale: string;
   redirectTo: string;
+  seasonId: string;
+  squadId: string;
   submitLabel: string;
   player?: (Awaited<ReturnType<typeof getSiteData>>)["players"][number];
 }) {
@@ -24,6 +29,8 @@ function PlayerForm({
       <input type="hidden" name="locale" value={locale} />
       <input type="hidden" name="redirectTo" value={redirectTo} />
       <input type="hidden" name="id" value={player?.id ?? ""} />
+      <input type="hidden" name="seasonId" value={seasonId} />
+      <input type="hidden" name="squadId" value={squadId} />
       <div className="grid gap-4 md:grid-cols-2">
         <input
           name="firstName"
@@ -44,13 +51,13 @@ function PlayerForm({
         <input
           name="jerseyNumber"
           type="number"
-          defaultValue={player?.jerseyNumber ?? ""}
+          defaultValue={player?.assignment.jerseyNumber ?? ""}
           placeholder="Number"
           className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white"
         />
         <input
           name="position"
-          defaultValue={player?.position ?? ""}
+          defaultValue={player?.assignment.position ?? ""}
           placeholder="Position"
           className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white"
         />
@@ -86,7 +93,7 @@ function PlayerForm({
         <input
           name="rosterOrder"
           type="number"
-          defaultValue={player?.rosterOrder ?? 99}
+          defaultValue={player?.assignment.rosterOrder ?? 99}
           placeholder="Roster order"
           className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white"
         />
@@ -136,14 +143,14 @@ function PlayerForm({
           <input
             name="featured"
             type="checkbox"
-            defaultChecked={player?.featured ?? false}
+            defaultChecked={player?.assignment.featured ?? false}
             className="h-4 w-4 rounded border-white/20 bg-transparent"
           />
           Featured player
         </label>
         <select
           name="status"
-          defaultValue={player?.status ?? "published"}
+          defaultValue={player?.assignment.status ?? "published"}
           className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white"
         >
           <option className="bg-ink" value="draft">
@@ -169,7 +176,7 @@ export default async function AdminPlayersPage({
   searchParams
 }: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ edit?: string; create?: string }>;
+  searchParams: Promise<{ edit?: string; create?: string; squad?: string }>;
 }) {
   const { locale } = await params;
   const query = await searchParams;
@@ -181,10 +188,14 @@ export default async function AdminPlayersPage({
 
   const dictionary = getDictionary(locale);
   const data = await getSiteData();
-  const players = sortPlayers(data.players);
+  const selectedSquad = resolveSelectedSquad(query.squad, data.squads);
+  const players = sortPlayers(
+    data.players.filter((player) => player.assignment.squadId === selectedSquad.id)
+  );
   const basePath = `/${locale}/admin/players`;
   const editingPlayer = query.edit ? players.find((player) => player.id === query.edit) : undefined;
   const isCreating = query.create === "1";
+  const listPath = `${basePath}?squad=${selectedSquad.id}`;
 
   return (
     <AdminShell locale={locale} labels={dictionary.admin}>
@@ -198,8 +209,13 @@ export default async function AdminPlayersPage({
               Compact list with direct edit and delete actions.
             </p>
           </div>
+          <SquadSwitch
+            basePath={basePath}
+            squads={data.squads}
+            selectedSquadId={selectedSquad.id}
+          />
           <Link
-            href={`${basePath}?create=1`}
+            href={`${basePath}?squad=${selectedSquad.id}&create=1`}
             className="rounded-full bg-gold px-5 py-3 text-xs font-semibold uppercase tracking-[0.24em] text-ink"
           >
             New player
@@ -213,7 +229,7 @@ export default async function AdminPlayersPage({
             <div key={player.id} className="flex items-center justify-between gap-4 px-5 py-4">
               <div>
                 <p className="text-xs uppercase tracking-[0.25em] text-white/45">
-                  #{player.jerseyNumber} • {player.position} • {player.status}
+                  {player.assignment.squadId.toUpperCase()} • #{player.assignment.jerseyNumber} • {player.assignment.position} • {player.assignment.status}
                 </p>
                 <p className="mt-2 font-[var(--font-display)] text-3xl uppercase tracking-[0.08em] text-white">
                   {player.firstName} {player.lastName}
@@ -221,14 +237,14 @@ export default async function AdminPlayersPage({
               </div>
               <div className="flex gap-3">
                 <Link
-                  href={`${basePath}?edit=${player.id}`}
+                  href={`${basePath}?squad=${selectedSquad.id}&edit=${player.id}`}
                   className="rounded-full border border-gold/30 px-4 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-gold"
                 >
                   Edit
                 </Link>
                 <form action={deletePlayerAction}>
                   <input type="hidden" name="locale" value={locale} />
-                  <input type="hidden" name="redirectTo" value={basePath} />
+                  <input type="hidden" name="redirectTo" value={listPath} />
                   <input type="hidden" name="id" value={player.id} />
                   <button
                     type="submit"
@@ -246,11 +262,13 @@ export default async function AdminPlayersPage({
       {(editingPlayer || isCreating) && (
         <AdminModal
           title={editingPlayer ? `Edit ${editingPlayer.firstName} ${editingPlayer.lastName}` : "New player"}
-          closeHref={basePath}
+          closeHref={listPath}
         >
           <PlayerForm
             locale={locale}
-            redirectTo={basePath}
+            redirectTo={listPath}
+            seasonId={data.activeSeason.id}
+            squadId={selectedSquad.id}
             submitLabel={editingPlayer ? "Update player" : "Create player"}
             player={editingPlayer}
           />

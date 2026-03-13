@@ -13,7 +13,7 @@ type Props = {
 export function PlayerCard({ locale, player }: Props) {
   return (
     <Link
-      href={`/${locale}/roster/${player.slug}`}
+      href={`/${locale}/roster/${player.slug}?squad=${player.assignment.squadId}`}
       className="group panel-dark overflow-hidden hover:-translate-y-1"
     >
       <div className="relative aspect-[4/5] overflow-hidden">
@@ -25,12 +25,14 @@ export function PlayerCard({ locale, player }: Props) {
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/10 to-transparent" />
         <div className="absolute left-4 top-4 rounded-full bg-gold px-3 py-1 font-[var(--font-display)] text-2xl uppercase text-ink">
-          #{player.jerseyNumber}
+          #{player.assignment.jerseyNumber}
         </div>
       </div>
       <div className="space-y-4 p-5">
         <div>
-          <p className="text-xs uppercase tracking-[0.3em] text-white/45">{player.position}</p>
+          <p className="text-xs uppercase tracking-[0.3em] text-white/45">
+            {player.assignment.squadId.toUpperCase()} • {player.assignment.position}
+          </p>
           <h3 className="font-[var(--font-display)] text-4xl uppercase tracking-[0.08em] text-white">
             {player.firstName} {player.lastName}
           </h3>
