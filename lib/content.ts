@@ -5,7 +5,9 @@ import {
   posts as seedPosts,
   seasons as seedSeasons,
   siteSettings as seedSiteSettings,
-  teamStats as seedTeamStats
+  squads as seedSquads,
+  teamStats as seedTeamStats,
+  teamStatsBySquad as seedTeamStatsBySquad
 } from "@/data/site-content";
 import { formatDate, getDictionary } from "@/lib/i18n";
 import { createAdminClient, isSupabaseConfigured } from "@/lib/supabase";
@@ -15,10 +17,14 @@ import type {
   Locale,
   LocaleContent,
   Player,
+  PlayerAssignment,
   PlayerSeasonStats,
   Post,
   Season,
+  SiteData,
   SiteSettings,
+  Squad,
+  SquadId,
   TeamSeasonStats
 } from "@/lib/types";
 
@@ -26,32 +32,29 @@ type TranslationRow = {
   locale: Locale;
 };
 
-type PlayerRow = {
+type SquadRow = {
   id: string;
-  slug: string;
-  first_name: string;
-  last_name: string;
+  code: string;
+  name_es: string;
+  name_en: string;
+  sort_order: number | null;
+  is_default: boolean | null;
+  is_active: boolean | null;
+};
+
+type PlayerAssignmentRow = {
+  season_id: string;
+  squad_id: SquadId;
   jersey_number: number;
   position: string;
-  role: Player["role"];
-  bats: string | null;
-  throws: string | null;
-  hometown: string | null;
-  status: Player["status"];
-  photo_url: string | null;
   featured: boolean;
   roster_order: number;
-  player_translations?: Array<
-    TranslationRow & {
-      bio: string;
-      spotlight_quote: string;
-    }
-  >;
-  player_season_stats?: PlayerStatsRow[];
+  status: Player["assignment"]["status"];
 };
 
 type PlayerStatsRow = {
   season_id: string;
+  squad_id: SquadId | null;
   games_played: number;
   avg: number | null;
   obp: number | null;
@@ -69,10 +72,36 @@ type PlayerStatsRow = {
   saves: number | null;
 };
 
+type PlayerRow = {
+  id: string;
+  slug: string;
+  first_name: string;
+  last_name: string;
+  jersey_number: number | null;
+  position: string | null;
+  role: Player["role"];
+  bats: string | null;
+  throws: string | null;
+  hometown: string | null;
+  status: Player["assignment"]["status"] | null;
+  photo_url: string | null;
+  featured: boolean | null;
+  roster_order: number | null;
+  player_translations?: Array<
+    TranslationRow & {
+      bio: string;
+      spotlight_quote: string;
+    }
+  >;
+  player_assignments?: PlayerAssignmentRow[];
+  player_season_stats?: PlayerStatsRow[];
+};
+
 type GameRow = {
   id: string;
   slug: string;
   season_id: string;
+  squad_id: SquadId | null;
   opponent: string;
   starts_at: string;
   venue: string;
@@ -81,7 +110,6 @@ type GameRow = {
   home_score: number | null;
   away_score: number | null;
   cover_image_url: string | null;
-  gallery_id?: string | null;
   game_translations?: Array<
     TranslationRow & {
       headline: string;
@@ -133,6 +161,17 @@ type GalleryRow = {
   }>;
 };
 
+type TeamStatsRow = {
+  season_id: string;
+  squad_id: SquadId | null;
+  wins: number;
+  losses: number;
+  runs_scored: number;
+  runs_allowed: number;
+  streak: string | null;
+  standing: string | null;
+};
+
 function toLocaleContent<T extends TranslationRow>(
   rows: T[] | undefined,
   pick: (row: T) => string,
@@ -149,6 +188,10 @@ function toLocaleContent<T extends TranslationRow>(
     es: es ? pick(es) : fallback.es,
     en: en ? pick(en) : es ? pick(es) : fallback.en
   };
+}
+
+function toSquadId(input: string | null | undefined): SquadId {
+  return input === "a3" ? "a3" : "a1";
 }
 
 function mapSiteSettings(row: Record<string, unknown> | null | undefined): SiteSettings {
@@ -179,32 +222,53 @@ function mapSiteSettings(row: Record<string, unknown> | null | undefined): SiteS
   };
 }
 
-function mapTeamStats(row: Record<string, unknown> | null | undefined): TeamSeasonStats {
-  if (!row) {
-    return seedTeamStats;
+function mapSquads(rows: SquadRow[] | null | undefined): Squad[] {
+  if (!rows?.length) {
+    return seedSquads;
   }
 
-  return {
-    seasonId: String(row.season_id || seedTeamStats.seasonId),
+  return rows.map((row) => ({
+    id: toSquadId(row.id),
+    code: row.code === "A3" ? "A3" : "A1",
+    name: {
+      es: row.name_es || row.code,
+      en: row.name_en || row.name_es || row.code
+    },
+    isDefault: Boolean(row.is_default),
+    isActive: row.is_active !== false,
+    sortOrder: Number(row.sort_order ?? 99)
+  }));
+}
+
+function mapTeamStatsList(rows: TeamStatsRow[] | null | undefined): TeamSeasonStats[] {
+  if (!rows?.length) {
+    return seedTeamStatsBySquad;
+  }
+
+  return rows.map((row) => ({
+    seasonId: row.season_id,
+    squadId: toSquadId(row.squad_id),
     wins: Number(row.wins || 0),
     losses: Number(row.losses || 0),
     runsScored: Number(row.runs_scored || 0),
     runsAllowed: Number(row.runs_allowed || 0),
     streak: String(row.streak || ""),
     standing: row.standing ? String(row.standing) : undefined
-  };
+  }));
 }
 
-function mapPlayerStats(row?: PlayerStatsRow): PlayerSeasonStats {
+function mapPlayerStats(row?: PlayerStatsRow, assignment?: PlayerAssignment): PlayerSeasonStats {
   if (!row) {
     return {
-      seasonId: seedTeamStats.seasonId,
+      seasonId: assignment?.seasonId || seedTeamStats.seasonId,
+      squadId: assignment?.squadId || seedTeamStats.squadId,
       gamesPlayed: 0
     };
   }
 
   return {
     seasonId: row.season_id,
+    squadId: toSquadId(row.squad_id || assignment?.squadId),
     gamesPlayed: row.games_played,
     avg: row.avg ?? undefined,
     obp: row.obp ?? undefined,
@@ -223,34 +287,66 @@ function mapPlayerStats(row?: PlayerStatsRow): PlayerSeasonStats {
   };
 }
 
+function buildLegacyAssignment(row: PlayerRow): PlayerAssignment {
+  return {
+    seasonId: row.player_season_stats?.[0]?.season_id || seedTeamStats.seasonId,
+    squadId: "a1",
+    jerseyNumber: Number(row.jersey_number || 0),
+    position: row.position || "UTIL",
+    featured: Boolean(row.featured),
+    rosterOrder: Number(row.roster_order ?? 99),
+    status: row.status || "draft"
+  };
+}
+
 function mapPlayers(rows: PlayerRow[] | null | undefined): Player[] {
   if (!rows?.length) {
     return seedPlayers;
   }
 
-  return rows.map((row) => ({
-    id: row.id,
-    slug: row.slug,
-    firstName: row.first_name,
-    lastName: row.last_name,
-    jerseyNumber: row.jersey_number,
-    position: row.position,
-    role: row.role,
-    bats: row.bats ?? undefined,
-    throws: row.throws ?? undefined,
-    hometown: row.hometown ?? undefined,
-    status: row.status,
-    photo: row.photo_url || seedPlayers[0]?.photo || "",
-    featured: row.featured,
-    rosterOrder: row.roster_order,
-    bio: toLocaleContent(row.player_translations, (item) => item.bio),
-    spotlightQuote: toLocaleContent(
-      row.player_translations,
-      (item) => item.spotlight_quote,
-      { es: "", en: "" }
-    ),
-    stats: mapPlayerStats(row.player_season_stats?.[0])
-  }));
+  const mapped = rows.flatMap((row) => {
+    const assignments = row.player_assignments?.length
+      ? row.player_assignments.map<PlayerAssignment>((assignment) => ({
+          seasonId: assignment.season_id,
+          squadId: toSquadId(assignment.squad_id),
+          jerseyNumber: assignment.jersey_number,
+          position: assignment.position,
+          featured: assignment.featured,
+          rosterOrder: assignment.roster_order,
+          status: assignment.status
+        }))
+      : [buildLegacyAssignment(row)];
+
+    return assignments.map((assignment) => {
+      const statsRow = row.player_season_stats?.find(
+        (item) =>
+          item.season_id === assignment.seasonId &&
+          toSquadId(item.squad_id || assignment.squadId) === assignment.squadId
+      );
+
+      return {
+        id: row.id,
+        slug: row.slug,
+        firstName: row.first_name,
+        lastName: row.last_name,
+        role: row.role,
+        bats: row.bats ?? undefined,
+        throws: row.throws ?? undefined,
+        hometown: row.hometown ?? undefined,
+        photo: row.photo_url || seedPlayers[0]?.photo || "",
+        bio: toLocaleContent(row.player_translations, (item) => item.bio),
+        spotlightQuote: toLocaleContent(
+          row.player_translations,
+          (item) => item.spotlight_quote,
+          { es: "", en: "" }
+        ),
+        assignment,
+        stats: mapPlayerStats(statsRow, assignment)
+      } satisfies Player;
+    });
+  });
+
+  return mapped.length ? mapped : seedPlayers;
 }
 
 function mapGames(rows: GameRow[] | null | undefined): Game[] {
@@ -262,6 +358,7 @@ function mapGames(rows: GameRow[] | null | undefined): Game[] {
     id: row.id,
     slug: row.slug,
     seasonId: row.season_id,
+    squadId: toSquadId(row.squad_id),
     opponent: row.opponent,
     startsAt: row.starts_at,
     venue: row.venue,
@@ -332,6 +429,39 @@ function mapGalleries(rows: GalleryRow[] | null | undefined): Gallery[] {
   }));
 }
 
+export function resolveSelectedSquad(requested: string | undefined, squads: Squad[]) {
+  const activeSquads = squads.filter((squad) => squad.isActive).sort((a, b) => a.sortOrder - b.sortOrder);
+  const fallback =
+    activeSquads.find((squad) => squad.isDefault) ?? activeSquads[0] ?? seedSquads[0];
+
+  return activeSquads.find((squad) => squad.id === requested) ?? fallback;
+}
+
+function getTeamStatsForSquad(items: TeamSeasonStats[], seasonId: string, squadId: SquadId) {
+  return (
+    items.find((item) => item.seasonId === seasonId && item.squadId === squadId) ??
+    seedTeamStatsBySquad.find((item) => item.seasonId === seasonId && item.squadId === squadId) ??
+    seedTeamStatsBySquad.find((item) => item.squadId === squadId) ?? {
+      seasonId,
+      squadId,
+      wins: 0,
+      losses: 0,
+      runsScored: 0,
+      runsAllowed: 0,
+      streak: "0",
+      standing: undefined
+    }
+  );
+}
+
+function filterPlayersBySquad(players: Player[], squadId: SquadId) {
+  return players.filter((player) => player.assignment.squadId === squadId);
+}
+
+function filterGamesBySquad(games: Game[], squadId: SquadId) {
+  return games.filter((game) => game.squadId === squadId);
+}
+
 async function loadFromSupabase() {
   const client = createAdminClient();
   if (!client) {
@@ -341,6 +471,7 @@ async function loadFromSupabase() {
   const [
     settingsResult,
     seasonsResult,
+    squadsResult,
     statsResult,
     playersResult,
     gamesResult,
@@ -349,17 +480,17 @@ async function loadFromSupabase() {
   ] = await Promise.all([
     client.from("site_settings").select("*").eq("id", "primary").maybeSingle(),
     client.from("seasons").select("*").order("year", { ascending: false }),
-    client.from("team_season_stats").select("*").limit(1).maybeSingle(),
+    client.from("squads").select("*").order("sort_order", { ascending: true }),
+    client.from("team_season_stats").select("*"),
     client
       .from("players")
       .select(
-        "id, slug, first_name, last_name, jersey_number, position, role, bats, throws, hometown, status, photo_url, featured, roster_order, player_translations(locale, bio, spotlight_quote), player_season_stats(season_id, games_played, avg, obp, slg, ops, home_runs, runs_batted_in, runs, stolen_bases, wins, losses, era, whip, strikeouts, saves)"
-      )
-      .order("roster_order", { ascending: true }),
+        "id, slug, first_name, last_name, jersey_number, position, role, bats, throws, hometown, status, photo_url, featured, roster_order, player_translations(locale, bio, spotlight_quote), player_assignments(season_id, squad_id, jersey_number, position, featured, roster_order, status), player_season_stats(season_id, squad_id, games_played, avg, obp, slg, ops, home_runs, runs_batted_in, runs, stolen_bases, wins, losses, era, whip, strikeouts, saves)"
+      ),
     client
       .from("games")
       .select(
-        "id, slug, season_id, opponent, starts_at, venue, is_home, status, home_score, away_score, cover_image_url, game_translations(locale, headline, summary, key_moment)"
+        "id, slug, season_id, squad_id, opponent, starts_at, venue, is_home, status, home_score, away_score, cover_image_url, game_translations(locale, headline, summary, key_moment)"
       )
       .order("starts_at", { ascending: true }),
     client
@@ -379,6 +510,7 @@ async function loadFromSupabase() {
   const hasError =
     settingsResult.error ||
     seasonsResult.error ||
+    squadsResult.error ||
     statsResult.error ||
     playersResult.error ||
     gamesResult.error ||
@@ -397,38 +529,31 @@ async function loadFromSupabase() {
       active: Boolean(row.is_active)
     })) || seedSeasons;
 
-  const mappedPlayers = mapPlayers(playersResult.data as PlayerRow[] | null | undefined);
-  const mappedGames = mapGames(gamesResult.data as GameRow[] | null | undefined);
-  const mappedPosts = mapPosts(postsResult.data as PostRow[] | null | undefined);
-  const mappedGalleries = mapGalleries(galleriesResult.data as GalleryRow[] | null | undefined);
-
-  if (
-    !mappedSeasons.length &&
-    !mappedPlayers.length &&
-    !mappedGames.length &&
-    !mappedPosts.length &&
-    !mappedGalleries.length
-  ) {
-    return null;
-  }
+  const mappedSquads = mapSquads(squadsResult.data as SquadRow[] | null | undefined);
+  const teamStatsBySquad = mapTeamStatsList(statsResult.data as TeamStatsRow[] | null | undefined);
+  const activeSeason =
+    mappedSeasons.find((season) => season.active) ??
+    mappedSeasons[0] ??
+    seedSeasons.find((season) => season.active) ??
+    seedSeasons[0];
+  const defaultSquad = resolveSelectedSquad(undefined, mappedSquads);
 
   return {
     settings: mapSiteSettings(settingsResult.data),
     seasons: mappedSeasons.length ? mappedSeasons : seedSeasons,
-    activeSeason:
-      mappedSeasons.find((season) => season.active) ??
-      mappedSeasons[0] ??
-      seedSeasons.find((season) => season.active) ??
-      seedSeasons[0],
-    teamStats: mapTeamStats(statsResult.data),
-    players: mappedPlayers,
-    games: mappedGames,
-    posts: mappedPosts,
-    galleries: mappedGalleries
-  };
+    activeSeason,
+    squads: mappedSquads.length ? mappedSquads : seedSquads,
+    defaultSquad,
+    teamStats: getTeamStatsForSquad(teamStatsBySquad, activeSeason.id, defaultSquad.id),
+    teamStatsBySquad,
+    players: mapPlayers(playersResult.data as PlayerRow[] | null | undefined),
+    games: mapGames(gamesResult.data as GameRow[] | null | undefined),
+    posts: mapPosts(postsResult.data as PostRow[] | null | undefined),
+    galleries: mapGalleries(galleriesResult.data as GalleryRow[] | null | undefined)
+  } satisfies SiteData;
 }
 
-export async function getSiteData() {
+export async function getSiteData(): Promise<SiteData> {
   if (isSupabaseConfigured()) {
     const remote = await loadFromSupabase();
     if (remote) {
@@ -436,11 +561,17 @@ export async function getSiteData() {
     }
   }
 
+  const defaultSquad = resolveSelectedSquad(undefined, seedSquads);
+  const activeSeason = seedSeasons.find((season) => season.active) ?? seedSeasons[0];
+
   return {
     settings: seedSiteSettings,
     seasons: seedSeasons,
-    activeSeason: seedSeasons.find((season) => season.active) ?? seedSeasons[0],
-    teamStats: seedTeamStats,
+    activeSeason,
+    squads: seedSquads,
+    defaultSquad,
+    teamStats: getTeamStatsForSquad(seedTeamStatsBySquad, activeSeason.id, defaultSquad.id),
+    teamStatsBySquad: seedTeamStatsBySquad,
     players: seedPlayers,
     games: seedGames,
     posts: seedPosts,
@@ -448,31 +579,81 @@ export async function getSiteData() {
   };
 }
 
-export async function getHomePayload(locale: Locale) {
+export async function getHomePayload(locale: Locale, squadParam?: string) {
   const data = await getSiteData();
   const dictionary = getDictionary(locale);
-  const nextGame = data.games.find((game) => game.status === "scheduled") ?? data.games[0];
-  const latestResult = data.games.find((game) => game.status === "final") ?? data.games[0];
+  const selectedSquad = resolveSelectedSquad(squadParam, data.squads);
+  const squadPlayers = filterPlayersBySquad(data.players, selectedSquad.id);
+  const publishedPlayers = squadPlayers.filter((player) => player.assignment.status === "published");
+  const squadGames = sortGames(filterGamesBySquad(data.games, selectedSquad.id));
+  const nextGame = squadGames.find((game) => game.status === "scheduled");
+  const latestResult = [...squadGames]
+    .filter((game) => game.status === "final")
+    .sort((a, b) => new Date(b.startsAt).getTime() - new Date(a.startsAt).getTime())[0];
 
   return {
     ...data,
     dictionary,
+    selectedSquad,
+    teamStats: getTeamStatsForSquad(data.teamStatsBySquad, data.activeSeason.id, selectedSquad.id),
+    players: publishedPlayers,
+    games: squadGames,
     nextGame,
     latestResult,
-    featuredPlayers: data.players.filter((player) => player.featured).slice(0, 3),
+    featuredPlayers: publishedPlayers.filter((player) => player.assignment.featured).slice(0, 3),
     featuredPosts: data.posts.filter((post) => post.status === "published").slice(0, 3),
     featuredGalleries: data.galleries.filter((gallery) => gallery.status === "published").slice(0, 2)
   };
 }
 
-export async function getPlayerBySlug(slug: string) {
+export async function getRosterPayload(locale: Locale, squadParam?: string) {
   const data = await getSiteData();
-  return data.players.find((player) => player.slug === slug);
+  const dictionary = getDictionary(locale);
+  const selectedSquad = resolveSelectedSquad(squadParam, data.squads);
+
+  return {
+    ...data,
+    dictionary,
+    selectedSquad,
+    players: sortPlayers(
+      filterPlayersBySquad(data.players, selectedSquad.id).filter(
+        (player) => player.assignment.status === "published"
+      )
+    )
+  };
 }
 
-export async function getGameBySlug(slug: string) {
+export async function getGamesPayload(locale: Locale, squadParam?: string) {
   const data = await getSiteData();
-  return data.games.find((game) => game.slug === slug);
+  const dictionary = getDictionary(locale);
+  const selectedSquad = resolveSelectedSquad(squadParam, data.squads);
+
+  return {
+    ...data,
+    dictionary,
+    selectedSquad,
+    games: sortGames(filterGamesBySquad(data.games, selectedSquad.id))
+  };
+}
+
+export async function getPlayerBySlug(slug: string, squadParam?: string) {
+  const data = await getSiteData();
+  const selectedSquad = resolveSelectedSquad(squadParam, data.squads);
+
+  return (
+    filterPlayersBySquad(data.players, selectedSquad.id).find((player) => player.slug === slug) ??
+    data.players.find((player) => player.slug === slug)
+  );
+}
+
+export async function getGameBySlug(slug: string, squadParam?: string) {
+  const data = await getSiteData();
+  const selectedSquad = resolveSelectedSquad(squadParam, data.squads);
+
+  return (
+    filterGamesBySquad(data.games, selectedSquad.id).find((game) => game.slug === slug) ??
+    data.games.find((game) => game.slug === slug)
+  );
 }
 
 export async function getPostBySlug(slug: string) {
@@ -490,7 +671,11 @@ export function localizeText(locale: Locale, input: { es: string; en: string }) 
 }
 
 export function sortPlayers(items: Player[]) {
-  return [...items].sort((a, b) => a.rosterOrder - b.rosterOrder || a.jerseyNumber - b.jerseyNumber);
+  return [...items].sort(
+    (a, b) =>
+      a.assignment.rosterOrder - b.assignment.rosterOrder ||
+      a.assignment.jerseyNumber - b.assignment.jerseyNumber
+  );
 }
 
 export function sortGames(items: Game[]) {

@@ -7,16 +7,19 @@ import { getGameBySlug, getGalleryBySlug, localizeText } from "@/lib/content";
 import { formatDate, isLocale } from "@/lib/i18n";
 
 export default async function GamePage({
-  params
+  params,
+  searchParams
 }: {
   params: Promise<{ locale: string; slug: string }>;
+  searchParams: Promise<{ squad?: string }>;
 }) {
   const { locale, slug } = await params;
+  const query = await searchParams;
   if (!isLocale(locale)) {
     notFound();
   }
 
-  const game = await getGameBySlug(slug);
+  const game = await getGameBySlug(slug, query.squad);
   if (!game) {
     notFound();
   }
@@ -37,7 +40,7 @@ export default async function GamePage({
             <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
           </div>
           <div className="flex flex-col justify-center p-8">
-            <p className="eyebrow">{game.status}</p>
+            <p className="eyebrow">{game.squadId.toUpperCase()} • {game.status}</p>
             <h1 className="mt-4 font-[var(--font-display)] text-6xl uppercase leading-none tracking-[0.08em] text-white">
               {game.opponent}
             </h1>

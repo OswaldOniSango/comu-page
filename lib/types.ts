@@ -1,4 +1,5 @@
 export type Locale = "es" | "en";
+export type SquadId = "a1" | "a3";
 
 export type PublishStatus = "draft" | "published";
 export type PlayerRole = "hitter" | "pitcher" | "two_way";
@@ -8,6 +9,15 @@ export type GameStatus = "scheduled" | "final" | "postponed";
 export type LocaleContent = {
   es: string;
   en: string;
+};
+
+export type Squad = {
+  id: SquadId;
+  code: "A1" | "A3";
+  name: LocaleContent;
+  isDefault: boolean;
+  isActive: boolean;
+  sortOrder: number;
 };
 
 export type SiteSettings = {
@@ -35,6 +45,7 @@ export type Season = {
 
 export type TeamSeasonStats = {
   seasonId: string;
+  squadId: SquadId;
   wins: number;
   losses: number;
   runsScored: number;
@@ -43,8 +54,19 @@ export type TeamSeasonStats = {
   standing?: string;
 };
 
+export type PlayerAssignment = {
+  seasonId: string;
+  squadId: SquadId;
+  jerseyNumber: number;
+  position: string;
+  featured: boolean;
+  rosterOrder: number;
+  status: PublishStatus;
+};
+
 export type PlayerSeasonStats = {
   seasonId: string;
+  squadId: SquadId;
   gamesPlayed: number;
   avg?: number;
   obp?: number;
@@ -67,18 +89,14 @@ export type Player = {
   slug: string;
   firstName: string;
   lastName: string;
-  jerseyNumber: number;
-  position: string;
   role: PlayerRole;
   bats?: string;
   throws?: string;
   hometown?: string;
-  status: PublishStatus;
   photo: string;
-  featured: boolean;
-  rosterOrder: number;
   bio: LocaleContent;
   spotlightQuote?: LocaleContent;
+  assignment: PlayerAssignment;
   stats: PlayerSeasonStats;
 };
 
@@ -86,6 +104,7 @@ export type Game = {
   id: string;
   slug: string;
   seasonId: string;
+  squadId: SquadId;
   opponent: string;
   startsAt: string;
   venue: string;
@@ -132,4 +151,18 @@ export type Gallery = {
   title: LocaleContent;
   description: LocaleContent;
   images: GalleryImage[];
+};
+
+export type SiteData = {
+  settings: SiteSettings;
+  seasons: Season[];
+  activeSeason: Season;
+  squads: Squad[];
+  defaultSquad: Squad;
+  teamStats: TeamSeasonStats;
+  teamStatsBySquad: TeamSeasonStats[];
+  players: Player[];
+  games: Game[];
+  posts: Post[];
+  galleries: Gallery[];
 };

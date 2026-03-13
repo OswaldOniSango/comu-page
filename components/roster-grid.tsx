@@ -11,6 +11,7 @@ type Props = {
   searchLabel: string;
   filterLabel: string;
   allPositionsLabel: string;
+  emptyLabel?: string;
 };
 
 export function RosterGrid({
@@ -18,12 +19,13 @@ export function RosterGrid({
   players,
   searchLabel,
   filterLabel,
-  allPositionsLabel
+  allPositionsLabel,
+  emptyLabel = "No hay jugadores publicados en este roster todavia."
 }: Props) {
   const [query, setQuery] = useState("");
   const [position, setPosition] = useState("all");
   const positions = useMemo(
-    () => ["all", ...new Set(players.map((player) => player.position))],
+    () => ["all", ...new Set(players.map((player) => player.assignment.position))],
     [players]
   );
 
@@ -32,7 +34,7 @@ export function RosterGrid({
       const matchesQuery = `${player.firstName} ${player.lastName}`
         .toLowerCase()
         .includes(query.toLowerCase());
-      const matchesPosition = position === "all" || player.position === position;
+      const matchesPosition = position === "all" || player.assignment.position === position;
       return matchesQuery && matchesPosition;
     });
   }, [players, position, query]);
@@ -64,11 +66,15 @@ export function RosterGrid({
           </select>
         </label>
       </div>
-      <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-        {filtered.map((player) => (
-          <PlayerCard key={player.id} locale={locale} player={player} />
-        ))}
-      </div>
+      {filtered.length ? (
+        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+          {filtered.map((player) => (
+            <PlayerCard key={`${player.id}-${player.assignment.squadId}`} locale={locale} player={player} />
+          ))}
+        </div>
+      ) : (
+        <div className="panel p-6 text-sm text-white/65">{emptyLabel}</div>
+      )}
     </div>
   );
 }

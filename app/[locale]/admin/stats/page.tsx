@@ -2,7 +2,8 @@ import Link from "next/link";
 
 import { AdminModal } from "@/components/admin-modal";
 import { AdminShell } from "@/components/admin-shell";
-import { getSiteData, sortPlayers } from "@/lib/content";
+import { SquadSwitch } from "@/components/squad-switch";
+import { getSiteData, resolveSelectedSquad, sortPlayers } from "@/lib/content";
 import { savePlayerStatsAction, saveTeamStatsAction } from "@/lib/admin-actions";
 import { getDictionary, isLocale } from "@/lib/i18n";
 import { requireAdminSession } from "@/lib/session";
@@ -11,10 +12,12 @@ import { notFound } from "next/navigation";
 function PlayerStatsForm({
   locale,
   redirectTo,
+  squadId,
   player
 }: {
   locale: string;
   redirectTo: string;
+  squadId: string;
   player: (Awaited<ReturnType<typeof getSiteData>>)["players"][number];
 }) {
   return (
@@ -23,6 +26,7 @@ function PlayerStatsForm({
       <input type="hidden" name="redirectTo" value={redirectTo} />
       <input type="hidden" name="playerId" value={player.id} />
       <input type="hidden" name="seasonId" value={player.stats.seasonId || "season-2026"} />
+      <input type="hidden" name="squadId" value={player.stats.squadId || squadId} />
 
       <div className="grid gap-4 md:grid-cols-3">
         <input
@@ -156,7 +160,7 @@ export default async function AdminStatsPage({
   searchParams
 }: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ edit?: string }>;
+  searchParams: Promise<{ edit?: string; squad?: string }>;
 }) {
   const { locale } = await params;
   const query = await searchParams;
@@ -168,48 +172,66 @@ export default async function AdminStatsPage({
 
   const dictionary = getDictionary(locale);
   const data = await getSiteData();
-  const players = sortPlayers(data.players);
+  const selectedSquad = resolveSelectedSquad(query.squad, data.squads);
+  const players = sortPlayers(
+    data.players.filter((player) => player.assignment.squadId === selectedSquad.id)
+  );
+  const teamStats =
+    data.teamStatsBySquad.find(
+      (item) => item.seasonId === data.activeSeason.id && item.squadId === selectedSquad.id
+    ) ?? data.teamStats;
   const basePath = `/${locale}/admin/stats`;
   const editingPlayer = query.edit ? players.find((player) => player.id === query.edit) : undefined;
+  const listPath = `${basePath}?squad=${selectedSquad.id}`;
 
   return (
     <AdminShell locale={locale} labels={dictionary.admin}>
       <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
         <div className="panel p-6">
-          <h2 className="font-[var(--font-display)] text-4xl uppercase tracking-[0.08em] text-white">
-            Team stats
-          </h2>
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <h2 className="font-[var(--font-display)] text-4xl uppercase tracking-[0.08em] text-white">
+              Team stats
+            </h2>
+            <SquadSwitch
+              basePath={basePath}
+              squads={data.squads}
+              selectedSquadId={selectedSquad.id}
+            />
+          </div>
           <div className="mt-6 grid gap-4 sm:grid-cols-2">
             <div className="rounded-2xl border border-white/10 p-4">
               <p className="text-xs uppercase tracking-[0.25em] text-white/45">Wins</p>
-              <p className="mt-2 font-[var(--font-display)] text-4xl text-white">{data.teamStats.wins}</p>
+              <p className="mt-2 font-[var(--font-display)] text-4xl text-white">{teamStats.wins}</p>
             </div>
             <div className="rounded-2xl border border-white/10 p-4">
               <p className="text-xs uppercase tracking-[0.25em] text-white/45">Losses</p>
-              <p className="mt-2 font-[var(--font-display)] text-4xl text-white">{data.teamStats.losses}</p>
+              <p className="mt-2 font-[var(--font-display)] text-4xl text-white">{teamStats.losses}</p>
             </div>
             <div className="rounded-2xl border border-white/10 p-4">
               <p className="text-xs uppercase tracking-[0.25em] text-white/45">Runs scored</p>
-              <p className="mt-2 font-[var(--font-display)] text-4xl text-white">{data.teamStats.runsScored}</p>
+              <p className="mt-2 font-[var(--font-display)] text-4xl text-white">{teamStats.runsScored}</p>
             </div>
             <div className="rounded-2xl border border-white/10 p-4">
               <p className="text-xs uppercase tracking-[0.25em] text-white/45">Runs allowed</p>
-              <p className="mt-2 font-[var(--font-display)] text-4xl text-white">{data.teamStats.runsAllowed}</p>
+              <p className="mt-2 font-[var(--font-display)] text-4xl text-white">{teamStats.runsAllowed}</p>
             </div>
           </div>
         </div>
         <form action={saveTeamStatsAction} className="panel p-6">
           <input type="hidden" name="locale" value={locale} />
+          <input type="hidden" name="redirectTo" value={listPath} />
+          <input type="hidden" name="seasonId" value={data.activeSeason.id} />
+          <input type="hidden" name="squadId" value={selectedSquad.id} />
           <h2 className="font-[var(--font-display)] text-4xl uppercase tracking-[0.08em] text-white">
             Update team line
           </h2>
           <div className="mt-6 grid gap-4 sm:grid-cols-2">
-            <input name="wins" type="number" defaultValue={data.teamStats.wins} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white" />
-            <input name="losses" type="number" defaultValue={data.teamStats.losses} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white" />
-            <input name="runsScored" type="number" defaultValue={data.teamStats.runsScored} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white" />
-            <input name="runsAllowed" type="number" defaultValue={data.teamStats.runsAllowed} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white" />
-            <input name="streak" defaultValue={data.teamStats.streak} placeholder="Streak" className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white" />
-            <input name="standing" defaultValue={data.teamStats.standing} placeholder="Standing" className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white" />
+            <input name="wins" type="number" defaultValue={teamStats.wins} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white" />
+            <input name="losses" type="number" defaultValue={teamStats.losses} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white" />
+            <input name="runsScored" type="number" defaultValue={teamStats.runsScored} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white" />
+            <input name="runsAllowed" type="number" defaultValue={teamStats.runsAllowed} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white" />
+            <input name="streak" defaultValue={teamStats.streak} placeholder="Streak" className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white" />
+            <input name="standing" defaultValue={teamStats.standing} placeholder="Standing" className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white" />
           </div>
           <button type="submit" className="mt-6 rounded-full bg-gold px-5 py-3 text-sm font-semibold uppercase tracking-[0.24em] text-ink">
             Save team stats
@@ -233,7 +255,7 @@ export default async function AdminStatsPage({
             <div key={player.id} className="flex items-center justify-between gap-4 px-5 py-4">
               <div>
                 <p className="text-xs uppercase tracking-[0.25em] text-white/45">
-                  #{player.jerseyNumber} • {player.position} • {player.role}
+                  {player.assignment.squadId.toUpperCase()} • #{player.assignment.jerseyNumber} • {player.assignment.position} • {player.role}
                 </p>
                 <p className="mt-2 font-[var(--font-display)] text-3xl uppercase tracking-[0.08em] text-white">
                   {player.firstName} {player.lastName}
@@ -244,7 +266,7 @@ export default async function AdminStatsPage({
                   G {player.stats.gamesPlayed}
                 </div>
                 <Link
-                  href={`${basePath}?edit=${player.id}`}
+                  href={`${basePath}?squad=${selectedSquad.id}&edit=${player.id}`}
                   className="rounded-full border border-gold/30 px-4 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-gold"
                 >
                   Edit stats
@@ -258,9 +280,9 @@ export default async function AdminStatsPage({
       {editingPlayer && (
         <AdminModal
           title={`Stats: ${editingPlayer.firstName} ${editingPlayer.lastName}`}
-          closeHref={basePath}
+          closeHref={listPath}
         >
-          <PlayerStatsForm locale={locale} redirectTo={basePath} player={editingPlayer} />
+          <PlayerStatsForm locale={locale} redirectTo={listPath} squadId={selectedSquad.id} player={editingPlayer} />
         </AdminModal>
       )}
     </AdminShell>

@@ -19,13 +19,13 @@ export function GameCard({ locale, game }: Props) {
 
   return (
     <Link
-      href={`/${locale}/games/${game.slug}`}
+      href={`/${locale}/games/${game.slug}?squad=${game.squadId}`}
       className="panel group flex flex-col justify-between gap-6 p-6 hover:border-gold/30"
     >
       <div>
         <div className="flex items-center justify-between gap-3">
           <p className="text-xs uppercase tracking-[0.3em] text-white/45">
-            {game.isHome ? "HOME" : "AWAY"}
+            {game.squadId.toUpperCase()} • {game.isHome ? "HOME" : "AWAY"}
           </p>
           <p className="rounded-full border border-white/10 px-3 py-1 text-[10px] uppercase tracking-[0.25em] text-gold">
             {game.status}
