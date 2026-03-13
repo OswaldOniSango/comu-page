@@ -28,7 +28,7 @@ async function loadEnvFile() {
       }
     }
   } catch {
-    // Keep going; environment variables may already be set by the shell.
+    // Environment variables may already be set by the shell.
   }
 }
 
@@ -61,7 +61,7 @@ const supabase = createClient(url, key, {
   auth: { persistSession: false, autoRefreshToken: false }
 });
 
-const { siteSettings, seasons, teamStats, players, games, posts, galleries } =
+const { siteSettings, seasons, squads, teamStatsBySquad, players, games, posts, galleries } =
   await loadSeedModule();
 
 function maybeNull(value) {
@@ -106,18 +106,36 @@ async function upsertSeasons() {
   if (error) throw error;
 }
 
+async function upsertSquads() {
+  const { error } = await supabase.from("squads").upsert(
+    squads.map((squad) => ({
+      id: squad.id,
+      code: squad.code,
+      name_es: squad.name.es,
+      name_en: squad.name.en,
+      sort_order: squad.sortOrder,
+      is_default: squad.isDefault,
+      is_active: squad.isActive
+    })),
+    { onConflict: "id" }
+  );
+
+  if (error) throw error;
+}
+
 async function upsertTeamStats() {
   const { error } = await supabase.from("team_season_stats").upsert(
-    {
+    teamStatsBySquad.map((teamStats) => ({
       season_id: teamStats.seasonId,
+      squad_id: teamStats.squadId,
       wins: teamStats.wins,
       losses: teamStats.losses,
       runs_scored: teamStats.runsScored,
       runs_allowed: teamStats.runsAllowed,
       streak: teamStats.streak,
       standing: teamStats.standing ?? null
-    },
-    { onConflict: "season_id" }
+    })),
+    { onConflict: "season_id,squad_id" }
   );
 
   if (error) throw error;
@@ -132,16 +150,16 @@ async function upsertPlayers() {
           slug: player.slug,
           first_name: player.firstName,
           last_name: player.lastName,
-          jersey_number: player.jerseyNumber,
-          position: player.position,
+          jersey_number: player.assignment.jerseyNumber,
+          position: player.assignment.position,
           role: player.role,
           bats: player.bats ?? null,
           throws: player.throws ?? null,
           hometown: player.hometown ?? null,
           photo_url: player.photo,
-          featured: player.featured,
-          roster_order: player.rosterOrder,
-          status: player.status
+          featured: player.assignment.featured,
+          roster_order: player.assignment.rosterOrder,
+          status: player.assignment.status
         },
         { onConflict: "slug" }
       )
@@ -169,10 +187,26 @@ async function upsertPlayers() {
     );
     if (translationsError) throw translationsError;
 
+    const { error: assignmentError } = await supabase.from("player_assignments").upsert(
+      {
+        player_id: data.id,
+        season_id: player.assignment.seasonId,
+        squad_id: player.assignment.squadId,
+        jersey_number: player.assignment.jerseyNumber,
+        position: player.assignment.position,
+        featured: player.assignment.featured,
+        roster_order: player.assignment.rosterOrder,
+        status: player.assignment.status
+      },
+      { onConflict: "player_id,season_id,squad_id" }
+    );
+    if (assignmentError) throw assignmentError;
+
     const { error: statsError } = await supabase.from("player_season_stats").upsert(
       {
         player_id: data.id,
         season_id: player.stats.seasonId,
+        squad_id: player.stats.squadId,
         games_played: player.stats.gamesPlayed,
         avg: maybeNull(player.stats.avg),
         obp: maybeNull(player.stats.obp),
@@ -189,7 +223,7 @@ async function upsertPlayers() {
         strikeouts: maybeNull(player.stats.strikeouts),
         saves: maybeNull(player.stats.saves)
       },
-      { onConflict: "player_id,season_id" }
+      { onConflict: "player_id,season_id,squad_id" }
     );
     if (statsError) throw statsError;
   }
@@ -203,6 +237,7 @@ async function upsertGames() {
         {
           slug: game.slug,
           season_id: game.seasonId,
+          squad_id: game.squadId,
           opponent: game.opponent,
           starts_at: game.startsAt,
           venue: game.venue,
@@ -330,23 +365,26 @@ async function upsertGalleries() {
       .eq("gallery_id", data.id);
     if (deleteImagesError) throw deleteImagesError;
 
-    const { error: imagesError } = await supabase.from("gallery_images").insert(
-      gallery.images.map((image) => ({
-        gallery_id: data.id,
-        image_url: image.image,
-        alt_es: image.alt.es,
-        alt_en: image.alt.en,
-        caption_es: image.caption?.es ?? "",
-        caption_en: image.caption?.en ?? "",
-        sort_order: image.order
-      }))
-    );
-    if (imagesError) throw imagesError;
+    if (gallery.images.length) {
+      const { error: imagesError } = await supabase.from("gallery_images").insert(
+        gallery.images.map((image) => ({
+          gallery_id: data.id,
+          image_url: image.image,
+          alt_es: image.alt.es,
+          alt_en: image.alt.en,
+          caption_es: image.caption?.es ?? "",
+          caption_en: image.caption?.en ?? "",
+          sort_order: image.order
+        }))
+      );
+      if (imagesError) throw imagesError;
+    }
   }
 }
 
 await upsertSiteSettings();
 await upsertSeasons();
+await upsertSquads();
 await upsertTeamStats();
 await upsertPlayers();
 await upsertGames();

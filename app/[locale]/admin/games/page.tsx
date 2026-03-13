@@ -2,8 +2,9 @@ import Link from "next/link";
 
 import { AdminModal } from "@/components/admin-modal";
 import { AdminShell } from "@/components/admin-shell";
+import { SquadSwitch } from "@/components/squad-switch";
 import { deleteGameAction, saveGameAction } from "@/lib/admin-actions";
-import { getSiteData, sortGames } from "@/lib/content";
+import { getSiteData, resolveSelectedSquad, sortGames } from "@/lib/content";
 import { getDictionary, isLocale, toLocalDateTimeInputValue } from "@/lib/i18n";
 import { requireAdminSession } from "@/lib/session";
 import { notFound } from "next/navigation";
@@ -11,11 +12,15 @@ import { notFound } from "next/navigation";
 function GameForm({
   locale,
   redirectTo,
+  seasonId,
+  squadId,
   submitLabel,
   game
 }: {
   locale: string;
   redirectTo: string;
+  seasonId: string;
+  squadId: string;
   submitLabel: string;
   game?: (Awaited<ReturnType<typeof getSiteData>>)["games"][number];
 }) {
@@ -24,7 +29,8 @@ function GameForm({
       <input type="hidden" name="locale" value={locale} />
       <input type="hidden" name="redirectTo" value={redirectTo} />
       <input type="hidden" name="id" value={game?.id ?? ""} />
-      <input type="hidden" name="seasonId" value={game?.seasonId ?? "season-2026"} />
+      <input type="hidden" name="seasonId" value={game?.seasonId ?? seasonId} />
+      <input type="hidden" name="squadId" value={game?.squadId ?? squadId} />
       <input
         name="opponent"
         required
@@ -154,7 +160,7 @@ export default async function AdminGamesPage({
   searchParams
 }: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ edit?: string; create?: string }>;
+  searchParams: Promise<{ edit?: string; create?: string; squad?: string }>;
 }) {
   const { locale } = await params;
   const query = await searchParams;
@@ -166,10 +172,12 @@ export default async function AdminGamesPage({
 
   const dictionary = getDictionary(locale);
   const data = await getSiteData();
-  const games = sortGames(data.games);
+  const selectedSquad = resolveSelectedSquad(query.squad, data.squads);
+  const games = sortGames(data.games.filter((game) => game.squadId === selectedSquad.id));
   const basePath = `/${locale}/admin/games`;
   const editingGame = query.edit ? games.find((game) => game.id === query.edit) : undefined;
   const isCreating = query.create === "1";
+  const listPath = `${basePath}?squad=${selectedSquad.id}`;
 
   return (
     <AdminShell locale={locale} labels={dictionary.admin}>
@@ -181,8 +189,13 @@ export default async function AdminGamesPage({
             </h1>
             <p className="mt-3 text-sm text-white/65">Edit and delete from a compact schedule list.</p>
           </div>
+          <SquadSwitch
+            basePath={basePath}
+            squads={data.squads}
+            selectedSquadId={selectedSquad.id}
+          />
           <Link
-            href={`${basePath}?create=1`}
+            href={`${basePath}?squad=${selectedSquad.id}&create=1`}
             className="rounded-full bg-gold px-5 py-3 text-xs font-semibold uppercase tracking-[0.24em] text-ink"
           >
             New game
@@ -196,7 +209,7 @@ export default async function AdminGamesPage({
             <div key={game.id} className="flex items-center justify-between gap-4 px-5 py-4">
               <div>
                 <p className="text-xs uppercase tracking-[0.25em] text-white/45">
-                  {game.status} • {game.venue}
+                  {game.squadId.toUpperCase()} • {game.status} • {game.venue}
                 </p>
                 <p className="mt-2 font-[var(--font-display)] text-3xl uppercase tracking-[0.08em] text-white">
                   {game.opponent}
@@ -204,14 +217,14 @@ export default async function AdminGamesPage({
               </div>
               <div className="flex gap-3">
                 <Link
-                  href={`${basePath}?edit=${game.id}`}
+                  href={`${basePath}?squad=${selectedSquad.id}&edit=${game.id}`}
                   className="rounded-full border border-gold/30 px-4 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-gold"
                 >
                   Edit
                 </Link>
                 <form action={deleteGameAction}>
                   <input type="hidden" name="locale" value={locale} />
-                  <input type="hidden" name="redirectTo" value={basePath} />
+                  <input type="hidden" name="redirectTo" value={listPath} />
                   <input type="hidden" name="id" value={game.id} />
                   <button
                     type="submit"
@@ -227,10 +240,12 @@ export default async function AdminGamesPage({
       </div>
 
       {(editingGame || isCreating) && (
-        <AdminModal title={editingGame ? `Edit ${editingGame.opponent}` : "New game"} closeHref={basePath}>
+        <AdminModal title={editingGame ? `Edit ${editingGame.opponent}` : "New game"} closeHref={listPath}>
           <GameForm
             locale={locale}
-            redirectTo={basePath}
+            redirectTo={listPath}
+            seasonId={data.activeSeason.id}
+            squadId={selectedSquad.id}
             submitLabel={editingGame ? "Update game" : "Create game"}
             game={editingGame}
           />

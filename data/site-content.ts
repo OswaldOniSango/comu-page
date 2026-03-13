@@ -5,6 +5,7 @@ import type {
   Post,
   Season,
   SiteSettings,
+  Squad,
   TeamSeasonStats
 } from "@/lib/types";
 
@@ -36,15 +37,55 @@ export const seasons: Season[] = [
   { id: "season-2026", year: 2026, label: "2026", active: true }
 ];
 
-export const teamStats: TeamSeasonStats = {
-  seasonId: "season-2026",
-  wins: 12,
-  losses: 4,
-  runsScored: 91,
-  runsAllowed: 56,
-  streak: "W4",
-  standing: "1st place"
-};
+export const squads: Squad[] = [
+  {
+    id: "a1",
+    code: "A1",
+    name: {
+      es: "Comunicaciones A1",
+      en: "Comunicaciones A1"
+    },
+    isDefault: true,
+    isActive: true,
+    sortOrder: 1
+  },
+  {
+    id: "a3",
+    code: "A3",
+    name: {
+      es: "Comunicaciones A3",
+      en: "Comunicaciones A3"
+    },
+    isDefault: false,
+    isActive: true,
+    sortOrder: 2
+  }
+];
+
+export const teamStatsBySquad: TeamSeasonStats[] = [
+  {
+    seasonId: "season-2026",
+    squadId: "a1",
+    wins: 12,
+    losses: 4,
+    runsScored: 91,
+    runsAllowed: 56,
+    streak: "W4",
+    standing: "1st place"
+  },
+  {
+    seasonId: "season-2026",
+    squadId: "a3",
+    wins: 0,
+    losses: 0,
+    runsScored: 0,
+    runsAllowed: 0,
+    streak: "0",
+    standing: "Building roster"
+  }
+];
+
+export const teamStats = teamStatsBySquad[0];
 
 export const players: Player[] = [
   {
@@ -52,17 +93,12 @@ export const players: Player[] = [
     slug: "mateo-cabrera",
     firstName: "Mateo",
     lastName: "Cabrera",
-    jerseyNumber: 7,
-    position: "SS",
     role: "hitter",
     bats: "R",
     throws: "R",
     hometown: "Ciudad de Guatemala",
-    status: "published",
     photo:
       "https://images.unsplash.com/photo-1521412644187-c49fa049e84d?auto=format&fit=crop&w=900&q=80",
-    featured: true,
-    rosterOrder: 1,
     bio: {
       es: "Campocorto explosivo, lider defensivo y pieza central del orden ofensivo.",
       en: "Explosive shortstop, defensive leader and a core piece of the batting order."
@@ -71,8 +107,18 @@ export const players: Player[] = [
       es: "Jugamos rapido, pensamos rapido y atacamos cada inning.",
       en: "We play fast, think fast and attack every inning."
     },
+    assignment: {
+      seasonId: "season-2026",
+      squadId: "a1",
+      jerseyNumber: 7,
+      position: "SS",
+      featured: true,
+      rosterOrder: 1,
+      status: "published"
+    },
     stats: {
       seasonId: "season-2026",
+      squadId: "a1",
       gamesPlayed: 16,
       avg: 0.348,
       obp: 0.421,
@@ -89,17 +135,12 @@ export const players: Player[] = [
     slug: "jose-andrade",
     firstName: "Jose",
     lastName: "Andrade",
-    jerseyNumber: 24,
-    position: "CF",
     role: "hitter",
     bats: "L",
     throws: "R",
     hometown: "Mixco",
-    status: "published",
     photo:
       "https://images.unsplash.com/photo-1519766304817-4f37bda74a26?auto=format&fit=crop&w=900&q=80",
-    featured: true,
-    rosterOrder: 2,
     bio: {
       es: "Jardinero central de rango amplio y agresividad total en bases.",
       en: "Center fielder with elite range and constant pressure on the bases."
@@ -108,8 +149,18 @@ export const players: Player[] = [
       es: "La energia se contagia desde el primer out.",
       en: "Energy spreads from the very first out."
     },
+    assignment: {
+      seasonId: "season-2026",
+      squadId: "a1",
+      jerseyNumber: 24,
+      position: "CF",
+      featured: true,
+      rosterOrder: 2,
+      status: "published"
+    },
     stats: {
       seasonId: "season-2026",
+      squadId: "a1",
       gamesPlayed: 16,
       avg: 0.301,
       obp: 0.382,
@@ -126,17 +177,12 @@ export const players: Player[] = [
     slug: "daniel-soto",
     firstName: "Daniel",
     lastName: "Soto",
-    jerseyNumber: 18,
-    position: "P",
     role: "pitcher",
     bats: "R",
     throws: "R",
     hometown: "Villa Nueva",
-    status: "published",
     photo:
       "https://images.unsplash.com/photo-1507035895480-2b3156c31fc8?auto=format&fit=crop&w=900&q=80",
-    featured: true,
-    rosterOrder: 3,
     bio: {
       es: "Abridor de tempo agresivo, comando estable y gran cierre de innings.",
       en: "Aggressive starter with steady command and strong inning finishes."
@@ -145,8 +191,18 @@ export const players: Player[] = [
       es: "Atacar la zona siempre pone el juego a nuestro ritmo.",
       en: "Attacking the zone always puts the game on our rhythm."
     },
+    assignment: {
+      seasonId: "season-2026",
+      squadId: "a1",
+      jerseyNumber: 18,
+      position: "P",
+      featured: true,
+      rosterOrder: 3,
+      status: "published"
+    },
     stats: {
       seasonId: "season-2026",
+      squadId: "a1",
       gamesPlayed: 5,
       wins: 4,
       losses: 1,
@@ -161,17 +217,12 @@ export const players: Player[] = [
     slug: "luis-orellana",
     firstName: "Luis",
     lastName: "Orellana",
-    jerseyNumber: 32,
-    position: "C",
     role: "two_way",
     bats: "R",
     throws: "R",
     hometown: "Escuintla",
-    status: "published",
     photo:
       "https://images.unsplash.com/photo-1517466787929-bc90951d0974?auto=format&fit=crop&w=900&q=80",
-    featured: false,
-    rosterOrder: 4,
     bio: {
       es: "Receptor con liderazgo vocal, lectura de juego y bate oportuno.",
       en: "Catcher with vocal leadership, sharp game calling and timely contact."
@@ -180,8 +231,18 @@ export const players: Player[] = [
       es: "Cada jugada empieza por la comunicacion.",
       en: "Every play starts with communication."
     },
+    assignment: {
+      seasonId: "season-2026",
+      squadId: "a1",
+      jerseyNumber: 32,
+      position: "C",
+      featured: false,
+      rosterOrder: 4,
+      status: "published"
+    },
     stats: {
       seasonId: "season-2026",
+      squadId: "a1",
       gamesPlayed: 14,
       avg: 0.286,
       obp: 0.351,
@@ -206,6 +267,7 @@ export const games: Game[] = [
     id: "g-01",
     slug: "comunicaciones-vs-leones-mar-15",
     seasonId: "season-2026",
+    squadId: "a1",
     opponent: "Leones del Sur",
     startsAt: "2026-03-15T19:30:00-06:00",
     venue: "Estadio Comunicaciones",
@@ -231,6 +293,7 @@ export const games: Game[] = [
     id: "g-02",
     slug: "comunicaciones-vs-titanes-mar-08",
     seasonId: "season-2026",
+    squadId: "a1",
     opponent: "Titanes del Norte",
     startsAt: "2026-03-08T18:00:00-06:00",
     venue: "Parque Titanes",
@@ -258,6 +321,7 @@ export const games: Game[] = [
     id: "g-03",
     slug: "comunicaciones-vs-aguilas-feb-28",
     seasonId: "season-2026",
+    squadId: "a1",
     opponent: "Aguilas Metro",
     startsAt: "2026-02-28T20:00:00-06:00",
     venue: "Estadio Comunicaciones",

@@ -77,21 +77,23 @@ export async function savePlayerAction(formData: FormData) {
   const playerId = String(formData.get("id") || "");
   const firstName = String(formData.get("firstName") || "");
   const lastName = String(formData.get("lastName") || "");
+  const seasonId = String(formData.get("seasonId") || "season-2026");
+  const squadId = String(formData.get("squadId") || "a1");
   const slug = slugify(`${firstName}-${lastName}`);
   const payload = {
     slug,
     first_name: firstName,
     last_name: lastName,
-    jersey_number: Number(formData.get("jerseyNumber") || 0),
-    position: String(formData.get("position") || "UTIL"),
     role: String(formData.get("role") || "hitter") as PlayerRole,
     bats: String(formData.get("bats") || ""),
     throws: String(formData.get("throws") || ""),
     hometown: String(formData.get("hometown") || ""),
     photo_url: String(formData.get("photo") || ""),
+    jersey_number: Number(formData.get("jerseyNumber") || 0),
+    position: String(formData.get("position") || "UTIL"),
+    featured: parseBoolean(formData.get("featured")),
     roster_order: Number(formData.get("rosterOrder") || 99),
-    status: String(formData.get("status") || "draft") as PublishStatus,
-    featured: parseBoolean(formData.get("featured"))
+    status: String(formData.get("status") || "draft") as PublishStatus
   };
 
   const playerQuery = playerId
@@ -117,6 +119,20 @@ export async function savePlayerAction(formData: FormData) {
         }
       ],
       { onConflict: "player_id,locale" }
+    );
+
+    await client.from("player_assignments").upsert(
+      {
+        player_id: player.id,
+        season_id: seasonId,
+        squad_id: squadId,
+        jersey_number: Number(formData.get("jerseyNumber") || 0),
+        position: String(formData.get("position") || "UTIL"),
+        featured: parseBoolean(formData.get("featured")),
+        roster_order: Number(formData.get("rosterOrder") || 99),
+        status: String(formData.get("status") || "draft") as PublishStatus
+      },
+      { onConflict: "player_id,season_id,squad_id" }
     );
   }
 
@@ -146,6 +162,7 @@ export async function saveGameAction(formData: FormData) {
   const payload = {
     slug,
     season_id: String(formData.get("seasonId") || "season-2026"),
+    squad_id: String(formData.get("squadId") || "a1"),
     opponent,
     starts_at: startsAt,
     venue: String(formData.get("venue") || ""),
@@ -390,6 +407,7 @@ export async function deleteGalleryAction(formData: FormData) {
 
 export async function saveTeamStatsAction(formData: FormData) {
   const locale = (formData.get("locale") as Locale) || "es";
+  const redirectTo = getRedirectTo(formData);
   await ensureAdmin(locale);
 
   if (!isSupabaseConfigured()) {
@@ -404,7 +422,8 @@ export async function saveTeamStatsAction(formData: FormData) {
 
   await client.from("team_season_stats").upsert(
     {
-      season_id: "season-2026",
+      season_id: String(formData.get("seasonId") || "season-2026"),
+      squad_id: String(formData.get("squadId") || "a1"),
       wins: Number(formData.get("wins") || 0),
       losses: Number(formData.get("losses") || 0),
       runs_scored: Number(formData.get("runsScored") || 0),
@@ -412,10 +431,11 @@ export async function saveTeamStatsAction(formData: FormData) {
       streak: String(formData.get("streak") || ""),
       standing: String(formData.get("standing") || "")
     },
-    { onConflict: "season_id" }
+    { onConflict: "season_id,squad_id" }
   );
 
   await revalidateAll(locale);
+  maybeRedirect(redirectTo);
 }
 
 export async function savePlayerStatsAction(formData: FormData) {
@@ -431,6 +451,7 @@ export async function savePlayerStatsAction(formData: FormData) {
   const client = createAdminClient();
   const playerId = String(formData.get("playerId") || "");
   const seasonId = String(formData.get("seasonId") || "season-2026");
+  const squadId = String(formData.get("squadId") || "a1");
   if (!client || !playerId) {
     return;
   }
@@ -439,6 +460,7 @@ export async function savePlayerStatsAction(formData: FormData) {
     {
       player_id: playerId,
       season_id: seasonId,
+      squad_id: squadId,
       games_played: Number(formData.get("gamesPlayed") || 0),
       avg: parseOptionalNumber(formData.get("avg")),
       obp: parseOptionalNumber(formData.get("obp")),
@@ -455,7 +477,7 @@ export async function savePlayerStatsAction(formData: FormData) {
       strikeouts: parseOptionalNumber(formData.get("strikeouts")),
       saves: parseOptionalNumber(formData.get("saves"))
     },
-    { onConflict: "player_id,season_id" }
+    { onConflict: "player_id,season_id,squad_id" }
   );
 
   await revalidateAll(locale);
