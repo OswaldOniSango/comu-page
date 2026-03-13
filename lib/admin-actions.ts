@@ -8,6 +8,10 @@ import { requireAdminSession } from "@/lib/session";
 import { createAdminClient, isSupabaseConfigured } from "@/lib/supabase";
 import type { Locale, PlayerRole, PostKind, PublishStatus } from "@/lib/types";
 
+const STORAGE_BUCKET = "media";
+const MAX_IMAGE_SIZE = 1024 * 1024;
+let storageReady: Promise<void> | null = null;
+
 function slugify(input: string) {
   return input
     .toLowerCase()
@@ -36,6 +40,87 @@ function parseOptionalNumber(value: FormDataEntryValue | null) {
 
   const parsed = Number(raw);
   return Number.isNaN(parsed) ? null : parsed;
+}
+
+async function ensureStorageBucket() {
+  if (storageReady) {
+    return storageReady;
+  }
+
+  storageReady = (async () => {
+    const client = createAdminClient();
+    if (!client) {
+      return;
+    }
+
+    const { data } = await client.storage.getBucket(STORAGE_BUCKET);
+    if (data) {
+      return;
+    }
+
+    await client.storage.createBucket(STORAGE_BUCKET, {
+      public: true,
+      fileSizeLimit: "10MB",
+      allowedMimeTypes: ["image/jpeg", "image/png", "image/webp", "image/avif"]
+    });
+  })();
+
+  return storageReady;
+}
+
+function getFileFromFormData(formData: FormData, name: string) {
+  const value = formData.get(name);
+  if (!value || typeof value === "string") {
+    return null;
+  }
+
+  return value.size > 0 ? value : null;
+}
+
+async function uploadImageFile(
+  client: NonNullable<ReturnType<typeof createAdminClient>>,
+  file: File | null,
+  folder: string,
+  slugHint: string
+) {
+  if (!file) {
+    return null;
+  }
+
+  if (file.size > MAX_IMAGE_SIZE) {
+    throw new Error(`Image "${file.name}" exceeds the 1 MB limit.`);
+  }
+
+  await ensureStorageBucket();
+
+  const extension = file.name.includes(".") ? file.name.split(".").pop() : "jpg";
+  const fileName = `${Date.now()}-${slugify(slugHint || "asset")}.${extension}`;
+  const filePath = `${folder}/${fileName}`;
+  const arrayBuffer = await file.arrayBuffer();
+  const buffer = Buffer.from(arrayBuffer);
+
+  const { error } = await client.storage.from(STORAGE_BUCKET).upload(filePath, buffer, {
+    contentType: file.type || "application/octet-stream",
+    upsert: false
+  });
+
+  if (error) {
+    throw error;
+  }
+
+  const { data: publicUrlData } = client.storage.from(STORAGE_BUCKET).getPublicUrl(filePath);
+
+  await client.from("media_assets").upsert(
+    {
+      file_name: file.name,
+      file_path: filePath,
+      mime_type: file.type || null,
+      bucket: STORAGE_BUCKET
+    },
+    { onConflict: "file_path" }
+  );
+
+  return publicUrlData.publicUrl;
 }
 
 function getRedirectTo(formData: FormData) {
@@ -80,6 +165,12 @@ export async function savePlayerAction(formData: FormData) {
   const seasonId = String(formData.get("seasonId") || "season-2026");
   const squadId = String(formData.get("squadId") || "a1");
   const slug = slugify(`${firstName}-${lastName}`);
+  const uploadedPhoto = await uploadImageFile(
+    client,
+    getFileFromFormData(formData, "photoFile"),
+    "players",
+    `${firstName}-${lastName}`
+  );
   const payload = {
     slug,
     first_name: firstName,
@@ -88,7 +179,7 @@ export async function savePlayerAction(formData: FormData) {
     bats: String(formData.get("bats") || ""),
     throws: String(formData.get("throws") || ""),
     hometown: String(formData.get("hometown") || ""),
-    photo_url: String(formData.get("photo") || ""),
+    photo_url: uploadedPhoto || String(formData.get("photo") || ""),
     jersey_number: Number(formData.get("jerseyNumber") || 0),
     position: String(formData.get("position") || "UTIL"),
     featured: parseBoolean(formData.get("featured")),
@@ -159,6 +250,12 @@ export async function saveGameAction(formData: FormData) {
   const opponent = String(formData.get("opponent") || "");
   const startsAt = fromLocalDateTimeInput(String(formData.get("startsAt") || ""));
   const slug = slugify(`${opponent}-${startsAt.slice(0, 10)}`);
+  const uploadedCover = await uploadImageFile(
+    client,
+    getFileFromFormData(formData, "coverImageFile"),
+    "games",
+    slug
+  );
   const payload = {
     slug,
     season_id: String(formData.get("seasonId") || "season-2026"),
@@ -170,7 +267,7 @@ export async function saveGameAction(formData: FormData) {
     status: String(formData.get("status") || "scheduled"),
     home_score: Number(formData.get("homeScore") || 0),
     away_score: Number(formData.get("awayScore") || 0),
-    cover_image_url: String(formData.get("coverImage") || "")
+    cover_image_url: uploadedCover || String(formData.get("coverImage") || "")
   };
 
   const gameQuery = gameId
@@ -223,13 +320,19 @@ export async function savePostAction(formData: FormData) {
   const postId = String(formData.get("id") || "");
   const titleEs = String(formData.get("titleEs") || "");
   const slug = slugify(titleEs);
+  const uploadedCover = await uploadImageFile(
+    client,
+    getFileFromFormData(formData, "coverImageFile"),
+    "posts",
+    slug
+  );
   const payload = {
     slug,
     season_id: String(formData.get("seasonId") || "season-2026"),
     kind: String(formData.get("kind") || "news") as PostKind,
     status: String(formData.get("status") || "draft") as PublishStatus,
     published_at: fromLocalDateTimeInput(String(formData.get("publishedAt") || "")),
-    cover_image_url: String(formData.get("coverImage") || ""),
+    cover_image_url: uploadedCover || String(formData.get("coverImage") || ""),
     author_name: String(formData.get("authorName") || "Comunicaciones"),
     is_featured: parseBoolean(formData.get("featured"))
   };
@@ -284,11 +387,17 @@ export async function saveGalleryAction(formData: FormData) {
   const galleryId = String(formData.get("id") || "");
   const titleEs = String(formData.get("titleEs") || "");
   const slug = slugify(titleEs);
+  const uploadedCover = await uploadImageFile(
+    client,
+    getFileFromFormData(formData, "coverImageFile"),
+    "galleries",
+    `${slug}-cover`
+  );
   const payload = {
     slug,
     status: String(formData.get("status") || "draft"),
     event_date: fromLocalDateTimeInput(String(formData.get("eventDate") || "")),
-    cover_image_url: String(formData.get("coverImage") || "")
+    cover_image_url: uploadedCover || String(formData.get("coverImage") || "")
   };
 
   const galleryQuery = galleryId
@@ -315,6 +424,33 @@ export async function saveGalleryAction(formData: FormData) {
       ],
       { onConflict: "gallery_id,locale" }
     );
+
+    const existingImagesCount =
+      (await client
+        .from("gallery_images")
+        .select("id", { count: "exact", head: true })
+        .eq("gallery_id", gallery.id)).count ?? 0;
+
+    const galleryFiles = formData.getAll("galleryImages").filter((value): value is File => {
+      return typeof value !== "string" && value.size > 0;
+    });
+
+    for (const [index, file] of galleryFiles.entries()) {
+      const imageUrl = await uploadImageFile(client, file, "galleries", `${slug}-${index + 1}`);
+      if (!imageUrl) {
+        continue;
+      }
+
+      await client.from("gallery_images").insert({
+        gallery_id: gallery.id,
+        image_url: imageUrl,
+        alt_es: titleEs,
+        alt_en: String(formData.get("titleEn") || titleEs),
+        caption_es: titleEs,
+        caption_en: String(formData.get("titleEn") || titleEs),
+        sort_order: existingImagesCount + index + 1
+      });
+    }
   }
 
   await revalidateAll(locale);
@@ -498,6 +634,19 @@ export async function saveSiteSettingsAction(formData: FormData) {
     return;
   }
 
+  const uploadedHeroImage = await uploadImageFile(
+    client,
+    getFileFromFormData(formData, "heroImageFile"),
+    "settings",
+    "hero-image"
+  );
+  const uploadedLogo = await uploadImageFile(
+    client,
+    getFileFromFormData(formData, "logoFile"),
+    "settings",
+    "logo-mark"
+  );
+
   await client.from("site_settings").upsert(
     {
       id: "primary",
@@ -509,7 +658,8 @@ export async function saveSiteSettingsAction(formData: FormData) {
       tagline_en: String(formData.get("taglineEn") || ""),
       mission_es: String(formData.get("missionEs") || ""),
       mission_en: String(formData.get("missionEn") || ""),
-      hero_image_url: String(formData.get("heroImage") || ""),
+      hero_image_url: uploadedHeroImage || String(formData.get("heroImage") || ""),
+      logo_url: uploadedLogo || String(formData.get("logo") || ""),
       instagram_url: String(formData.get("instagram") || ""),
       facebook_url: String(formData.get("facebook") || ""),
       x_url: String(formData.get("x") || "")
