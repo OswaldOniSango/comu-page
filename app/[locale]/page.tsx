@@ -43,16 +43,15 @@ export default async function HomePage({
     <main>
       <section className="relative overflow-hidden">
         <div className="pointer-events-none absolute inset-0 bg-grid bg-[size:44px_44px] opacity-[0.07]" />
-        <div className="page-shell grid min-h-[78vh] items-end gap-10 py-10 lg:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
+        <div className="page-shell grid min-h-[auto] items-end gap-8 py-8 lg:min-h-[78vh] lg:gap-10 lg:py-10 lg:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
           <div className="min-w-0 space-y-8 text-center lg:text-left">
             <p className="eyebrow">{dictionary.common.season} {activeSeason.label}</p>
             <div className="mx-auto max-w-5xl overflow-hidden lg:mx-0">
-              <h1 className="mx-auto max-w-[7.4ch] font-[var(--font-display)] text-[clamp(3.4rem,8vw,6.4rem)] uppercase leading-[0.88] tracking-[0.015em] text-white lg:mx-0 lg:max-w-none lg:whitespace-nowrap lg:text-[clamp(3.8rem,5vw,5.15rem)] lg:tracking-[0.005em]">
-                <span className="block lg:hidden">Comunica</span>
-                <span className="block lg:hidden">ciones</span>
+              <h1 className="mx-auto max-w-[9.5ch] font-[var(--font-display)] text-[clamp(2.9rem,14vw,4.6rem)] uppercase leading-[0.9] tracking-[0.02em] text-white sm:max-w-[8.8ch] sm:text-[clamp(3.3rem,12vw,5.3rem)] lg:mx-0 lg:max-w-none lg:whitespace-nowrap lg:text-[clamp(3.8rem,5vw,5.05rem)] lg:tracking-[0.005em]">
+                <span className="block lg:hidden">Comunicaciones</span>
                 <span className="hidden lg:block">Comunicaciones</span>
               </h1>
-              <p className="mt-5 max-w-2xl text-lg leading-8 text-white/70 lg:max-w-2xl">
+              <p className="mt-4 max-w-2xl text-base leading-7 text-white/70 sm:mt-5 sm:text-lg sm:leading-8 lg:max-w-2xl">
                 {localizeText(locale, settings.tagline)}
               </p>
             </div>
@@ -84,16 +83,16 @@ export default async function HomePage({
           </div>
           <div className="panel-dark min-w-0 overflow-hidden p-5">
             <div
-              className="min-h-[440px] rounded-[1.6rem] bg-cover bg-center"
+              className="min-h-[360px] rounded-[1.6rem] bg-cover bg-center sm:min-h-[420px] lg:min-h-[440px]"
               style={{ backgroundImage: `url(${settings.heroImage})` }}
             >
-              <div className="flex min-h-[440px] flex-col justify-between bg-gradient-to-t from-black via-black/30 to-transparent p-6">
-                <div className="flex justify-between gap-4">
-                  <div className="rounded-full border border-white/10 bg-black/45 px-4 py-2 text-xs uppercase tracking-[0.28em] text-gold">
+              <div className="flex min-h-[360px] flex-col justify-between bg-gradient-to-t from-black via-black/30 to-transparent p-5 sm:min-h-[420px] sm:p-6 lg:min-h-[440px]">
+                <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:gap-4">
+                  <div className="w-fit rounded-full border border-white/10 bg-black/45 px-4 py-2 text-xs uppercase tracking-[0.28em] text-gold">
                     {dictionary.home.nextGame}
                   </div>
                   {nextGame ? (
-                    <div className="rounded-full border border-white/10 bg-black/45 px-4 py-2 text-xs uppercase tracking-[0.28em] text-white/60">
+                    <div className="w-fit rounded-full border border-white/10 bg-black/45 px-4 py-2 text-xs uppercase tracking-[0.22em] text-white/60 sm:tracking-[0.28em]">
                       {formatDate(nextGame.startsAt, locale)}
                     </div>
                   ) : null}
@@ -102,10 +101,10 @@ export default async function HomePage({
                   {nextGame ? (
                     <>
                       <p className="text-sm uppercase tracking-[0.3em] text-white/50">{nextGame.venue}</p>
-                      <h2 className="mt-3 font-[var(--font-display)] text-6xl uppercase leading-none tracking-[0.08em] text-white">
+                      <h2 className="mt-3 font-[var(--font-display)] text-4xl uppercase leading-none tracking-[0.06em] text-white sm:text-5xl lg:text-6xl lg:tracking-[0.08em]">
                         {nextGame.opponent}
                       </h2>
-                      <p className="mt-4 max-w-lg text-sm leading-7 text-white/70">
+                      <p className="mt-4 max-w-lg text-sm leading-6 text-white/70 sm:leading-7">
                         {localizeText(locale, nextGame.summary)}
                       </p>
                     </>
@@ -114,10 +113,10 @@ export default async function HomePage({
                       <p className="text-sm uppercase tracking-[0.3em] text-white/50">
                         {selectedSquad.code}
                       </p>
-                      <h2 className="mt-3 font-[var(--font-display)] text-5xl uppercase leading-none tracking-[0.08em] text-white">
+                      <h2 className="mt-3 font-[var(--font-display)] text-4xl uppercase leading-none tracking-[0.06em] text-white sm:text-5xl lg:tracking-[0.08em]">
                         {locale === "es" ? "Calendario en preparacion" : "Schedule in progress"}
                       </h2>
-                      <p className="mt-4 max-w-lg text-sm leading-7 text-white/70">
+                      <p className="mt-4 max-w-lg text-sm leading-6 text-white/70 sm:leading-7">
                         {locale === "es"
                           ? `Todavia no hay juegos cargados para ${selectedSquad.code}.`
                           : `There are no games loaded for ${selectedSquad.code} yet.`}
@@ -139,7 +138,7 @@ export default async function HomePage({
           </div>
           {nextGame ? (
             <>
-              <h3 className="mt-4 font-[var(--font-display)] text-5xl uppercase tracking-[0.08em] text-white">
+              <h3 className="mt-4 font-[var(--font-display)] text-4xl uppercase tracking-[0.06em] text-white sm:text-5xl sm:tracking-[0.08em]">
                 {nextGame.opponent}
               </h3>
               <p className="mt-2 text-white/65">{formatDate(nextGame.startsAt, locale)} • {nextGame.venue}</p>
@@ -160,7 +159,7 @@ export default async function HomePage({
           </div>
           {latestResult ? (
             <>
-              <h3 className="mt-4 font-[var(--font-display)] text-5xl uppercase tracking-[0.08em] text-white">
+              <h3 className="mt-4 font-[var(--font-display)] text-4xl uppercase tracking-[0.06em] text-white sm:text-5xl sm:tracking-[0.08em]">
                 {latestResult.homeScore} - {latestResult.awayScore}
               </h3>
               <p className="mt-2 text-white/65">{latestResult.opponent}</p>

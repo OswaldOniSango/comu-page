@@ -39,14 +39,14 @@ export default async function GamePage({
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
           </div>
-          <div className="flex flex-col justify-center p-8">
+          <div className="flex flex-col justify-center p-6 sm:p-8">
             <p className="eyebrow">{game.squadId.toUpperCase()} • {game.status}</p>
-            <h1 className="mt-4 font-[var(--font-display)] text-6xl uppercase leading-none tracking-[0.08em] text-white">
+            <h1 className="mt-4 font-[var(--font-display)] text-4xl uppercase leading-none tracking-[0.05em] text-white sm:text-5xl lg:text-6xl lg:tracking-[0.08em]">
               {game.opponent}
             </h1>
             <p className="mt-4 text-white/65">{formatDate(game.startsAt, locale)} • {game.venue}</p>
             {game.status === "final" ? (
-              <p className="mt-5 font-[var(--font-display)] text-5xl uppercase tracking-[0.08em] text-gold">
+              <p className="mt-5 font-[var(--font-display)] text-4xl uppercase tracking-[0.06em] text-gold sm:text-5xl sm:tracking-[0.08em]">
                 {game.homeScore} - {game.awayScore}
               </p>
             ) : null}

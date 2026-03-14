@@ -24,7 +24,7 @@ export function PlayerCard({ locale, player }: Props) {
           className="object-cover transition duration-500 group-hover:scale-105"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/10 to-transparent" />
-        <div className="absolute left-4 top-4 rounded-full bg-gold px-3 py-1 font-[var(--font-display)] text-2xl uppercase text-ink">
+        <div className="absolute left-4 top-4 rounded-full bg-gold px-3 py-1 font-[var(--font-display)] text-xl uppercase text-ink sm:text-2xl">
           #{player.assignment.jerseyNumber}
         </div>
       </div>
@@ -33,12 +33,12 @@ export function PlayerCard({ locale, player }: Props) {
           <p className="text-xs uppercase tracking-[0.3em] text-white/45">
             {player.assignment.squadId.toUpperCase()} • {player.assignment.position}
           </p>
-          <h3 className="font-[var(--font-display)] text-4xl uppercase tracking-[0.08em] text-white">
+          <h3 className="font-[var(--font-display)] text-3xl uppercase tracking-[0.06em] text-white sm:text-4xl sm:tracking-[0.08em]">
             {player.firstName} {player.lastName}
           </h3>
         </div>
         <p className="text-sm leading-6 text-white/65">{localizeText(locale, player.bio)}</p>
-        <div className="grid grid-cols-4 gap-3 border-t border-white/10 pt-4 text-center">
+        <div className="grid grid-cols-2 gap-3 border-t border-white/10 pt-4 text-center sm:grid-cols-4">
           <div>
             <p className="text-[10px] uppercase tracking-[0.25em] text-white/45">G</p>
             <p className="mt-1 font-semibold text-white">{player.stats.gamesPlayed}</p>
