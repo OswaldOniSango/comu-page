@@ -29,7 +29,7 @@ export function GalleryCard({ locale, gallery }: Props) {
         <p className="text-xs uppercase tracking-[0.3em] text-white/45">
           {formatDate(gallery.eventDate, locale)}
         </p>
-        <h3 className="font-[var(--font-display)] text-4xl uppercase tracking-[0.08em] text-white">
+        <h3 className="font-[var(--font-display)] text-3xl uppercase tracking-[0.06em] text-white sm:text-4xl sm:tracking-[0.08em]">
           {localizeText(locale, gallery.title)}
         </h3>
         <p className="text-sm leading-6 text-white/65">{localizeText(locale, gallery.description)}</p>

@@ -22,13 +22,13 @@ export function PostCard({ locale, post }: Props) {
         />
       </div>
       <div className="space-y-4 p-5">
-        <div className="flex items-center justify-between gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-xs uppercase tracking-[0.3em] text-gold">{post.kind}</p>
           <p className="text-xs uppercase tracking-[0.25em] text-white/45">
             {formatDate(post.publishedAt, locale)}
           </p>
         </div>
-        <h3 className="font-[var(--font-display)] text-4xl uppercase tracking-[0.08em] text-white">
+        <h3 className="font-[var(--font-display)] text-3xl uppercase tracking-[0.06em] text-white sm:text-4xl sm:tracking-[0.08em]">
           {localizeText(locale, post.title)}
         </h3>
         <p className="text-sm leading-6 text-white/65">{localizeText(locale, post.excerpt)}</p>

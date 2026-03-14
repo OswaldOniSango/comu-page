@@ -43,7 +43,7 @@ export default async function PlayerPage({
             {player.assignment.squadId.toUpperCase()} • {player.assignment.position} • #
             {player.assignment.jerseyNumber}
           </p>
-          <h1 className="font-[var(--font-display)] text-7xl uppercase leading-none tracking-[0.08em] text-white">
+          <h1 className="font-[var(--font-display)] text-5xl uppercase leading-none tracking-[0.05em] text-white sm:text-6xl lg:text-7xl lg:tracking-[0.08em]">
             {player.firstName} {player.lastName}
           </h1>
           <p className="max-w-2xl text-lg leading-8 text-white/70">{localizeText(locale, player.bio)}</p>
@@ -55,13 +55,13 @@ export default async function PlayerPage({
           <div className="grid gap-4 md:grid-cols-2">
             <div className="panel p-5">
               <p className="text-xs uppercase tracking-[0.3em] text-white/45">B/T</p>
-              <p className="mt-3 font-[var(--font-display)] text-4xl uppercase tracking-[0.08em] text-white">
+              <p className="mt-3 font-[var(--font-display)] text-3xl uppercase tracking-[0.06em] text-white sm:text-4xl sm:tracking-[0.08em]">
                 {player.bats}/{player.throws}
               </p>
             </div>
             <div className="panel p-5">
               <p className="text-xs uppercase tracking-[0.3em] text-white/45">Hometown</p>
-              <p className="mt-3 font-[var(--font-display)] text-4xl uppercase tracking-[0.08em] text-white">
+              <p className="mt-3 font-[var(--font-display)] text-3xl uppercase tracking-[0.06em] text-white sm:text-4xl sm:tracking-[0.08em]">
                 {player.hometown}
               </p>
             </div>
@@ -77,37 +77,39 @@ export default async function PlayerPage({
         <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-6">
           <div className="panel p-5">
             <p className="text-xs uppercase tracking-[0.3em] text-white/45">G</p>
-            <p className="mt-3 font-[var(--font-display)] text-5xl text-white">{player.stats.gamesPlayed}</p>
+            <p className="mt-3 font-[var(--font-display)] text-4xl text-white sm:text-5xl">
+              {player.stats.gamesPlayed}
+            </p>
           </div>
           {isPitcher ? (
             <>
               <div className="panel p-5">
                 <p className="text-xs uppercase tracking-[0.3em] text-white/45">W-L</p>
-                <p className="mt-3 font-[var(--font-display)] text-5xl text-white">
+                <p className="mt-3 font-[var(--font-display)] text-4xl text-white sm:text-5xl">
                   {formatNumber(player.stats.wins)}-{formatNumber(player.stats.losses)}
                 </p>
               </div>
               <div className="panel p-5">
                 <p className="text-xs uppercase tracking-[0.3em] text-white/45">ERA</p>
-                <p className="mt-3 font-[var(--font-display)] text-5xl text-white">
+                <p className="mt-3 font-[var(--font-display)] text-4xl text-white sm:text-5xl">
                   {formatNumber(player.stats.era, 2)}
                 </p>
               </div>
               <div className="panel p-5">
                 <p className="text-xs uppercase tracking-[0.3em] text-white/45">WHIP</p>
-                <p className="mt-3 font-[var(--font-display)] text-5xl text-white">
+                <p className="mt-3 font-[var(--font-display)] text-4xl text-white sm:text-5xl">
                   {formatNumber(player.stats.whip, 2)}
                 </p>
               </div>
               <div className="panel p-5">
                 <p className="text-xs uppercase tracking-[0.3em] text-white/45">SO</p>
-                <p className="mt-3 font-[var(--font-display)] text-5xl text-white">
+                <p className="mt-3 font-[var(--font-display)] text-4xl text-white sm:text-5xl">
                   {formatNumber(player.stats.strikeouts)}
                 </p>
               </div>
               <div className="panel p-5">
                 <p className="text-xs uppercase tracking-[0.3em] text-white/45">SV</p>
-                <p className="mt-3 font-[var(--font-display)] text-5xl text-white">
+                <p className="mt-3 font-[var(--font-display)] text-4xl text-white sm:text-5xl">
                   {formatNumber(player.stats.saves)}
                 </p>
               </div>
@@ -116,31 +118,31 @@ export default async function PlayerPage({
             <>
               <div className="panel p-5">
                 <p className="text-xs uppercase tracking-[0.3em] text-white/45">AVG</p>
-                <p className="mt-3 font-[var(--font-display)] text-5xl text-white">
+                <p className="mt-3 font-[var(--font-display)] text-4xl text-white sm:text-5xl">
                   {formatNumber(player.stats.avg, 3)}
                 </p>
               </div>
               <div className="panel p-5">
                 <p className="text-xs uppercase tracking-[0.3em] text-white/45">OBP</p>
-                <p className="mt-3 font-[var(--font-display)] text-5xl text-white">
+                <p className="mt-3 font-[var(--font-display)] text-4xl text-white sm:text-5xl">
                   {formatNumber(player.stats.obp, 3)}
                 </p>
               </div>
               <div className="panel p-5">
                 <p className="text-xs uppercase tracking-[0.3em] text-white/45">SLG</p>
-                <p className="mt-3 font-[var(--font-display)] text-5xl text-white">
+                <p className="mt-3 font-[var(--font-display)] text-4xl text-white sm:text-5xl">
                   {formatNumber(player.stats.slg, 3)}
                 </p>
               </div>
               <div className="panel p-5">
                 <p className="text-xs uppercase tracking-[0.3em] text-white/45">OPS</p>
-                <p className="mt-3 font-[var(--font-display)] text-5xl text-white">
+                <p className="mt-3 font-[var(--font-display)] text-4xl text-white sm:text-5xl">
                   {formatNumber(player.stats.ops, 3)}
                 </p>
               </div>
               <div className="panel p-5">
                 <p className="text-xs uppercase tracking-[0.3em] text-white/45">RBI</p>
-                <p className="mt-3 font-[var(--font-display)] text-5xl text-white">
+                <p className="mt-3 font-[var(--font-display)] text-4xl text-white sm:text-5xl">
                   {formatNumber(player.stats.runsBattedIn)}
                 </p>
               </div>
