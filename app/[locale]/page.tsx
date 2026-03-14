@@ -47,9 +47,8 @@ export default async function HomePage({
           <div className="min-w-0 space-y-8 text-center lg:text-left">
             <p className="eyebrow">{dictionary.common.season} {activeSeason.label}</p>
             <div className="mx-auto max-w-5xl overflow-hidden lg:mx-0">
-              <h1 className="mx-auto max-w-[9.5ch] font-[var(--font-display)] text-[clamp(2.9rem,14vw,4.6rem)] uppercase leading-[0.9] tracking-[0.02em] text-white sm:max-w-[8.8ch] sm:text-[clamp(3.3rem,12vw,5.3rem)] lg:mx-0 lg:max-w-none lg:whitespace-nowrap lg:text-[clamp(3.8rem,5vw,5.05rem)] lg:tracking-[0.005em]">
-                <span className="block lg:hidden">Comunicaciones</span>
-                <span className="hidden lg:block">Comunicaciones</span>
+              <h1 className="mx-auto max-w-none whitespace-nowrap font-[var(--font-display)] text-[clamp(2.15rem,9.8vw,3.05rem)] uppercase leading-[0.92] tracking-[0.01em] text-white sm:max-w-[8.8ch] sm:text-[clamp(3.3rem,12vw,5.3rem)] sm:tracking-[0.02em] lg:mx-0 lg:max-w-none lg:text-[clamp(3.8rem,5vw,5.05rem)] lg:tracking-[0.005em]">
+                Comunicaciones
               </h1>
               <p className="mt-4 max-w-2xl text-base leading-7 text-white/70 sm:mt-5 sm:text-lg sm:leading-8 lg:max-w-2xl">
                 {localizeText(locale, settings.tagline)}
