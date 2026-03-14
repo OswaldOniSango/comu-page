@@ -23,7 +23,7 @@ export function GameCard({ locale, game }: Props) {
       className="panel group flex flex-col justify-between gap-6 p-6 hover:border-gold/30"
     >
       <div>
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-xs uppercase tracking-[0.3em] text-white/45">
             {game.squadId.toUpperCase()} • {game.isHome ? "HOME" : "AWAY"}
           </p>
@@ -31,15 +31,15 @@ export function GameCard({ locale, game }: Props) {
             {game.status}
           </p>
         </div>
-        <h3 className="mt-4 font-[var(--font-display)] text-4xl uppercase tracking-[0.08em] text-white">
+        <h3 className="mt-4 font-[var(--font-display)] text-3xl uppercase tracking-[0.06em] text-white sm:text-4xl sm:tracking-[0.08em]">
           {game.opponent}
         </h3>
         <p className="mt-3 text-sm leading-6 text-white/65">{localizeText(locale, game.summary)}</p>
       </div>
-      <div className="flex items-end justify-between gap-4 border-t border-white/10 pt-4">
+      <div className="flex flex-col gap-4 border-t border-white/10 pt-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-xs uppercase tracking-[0.3em] text-white/45">{game.venue}</p>
-          <p className="mt-2 font-[var(--font-display)] text-3xl uppercase tracking-[0.08em] text-gold">
+          <p className="mt-2 font-[var(--font-display)] text-2xl uppercase tracking-[0.06em] text-gold sm:text-3xl sm:tracking-[0.08em]">
             {score}
           </p>
         </div>
