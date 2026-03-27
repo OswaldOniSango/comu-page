@@ -8,7 +8,10 @@
     "start": "next start",
     "lint": "next lint",
     "test": "vitest run",
-    "seed:supabase": "node scripts/seed-supabase.mjs"
+    "seed:supabase": "node scripts/seed-supabase.mjs",
+    "roster:a1": "node scripts/load-a1-roster.mjs",
+    "roster:a3": "node scripts/load-a3-roster.mjs",
+    "roster:fix-placeholder-photo": "node scripts/replace-roster-placeholder-photo.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.1",
