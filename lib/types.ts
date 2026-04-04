@@ -5,10 +5,118 @@ export type PublishStatus = "draft" | "published";
 export type PlayerRole = "hitter" | "pitcher" | "two_way";
 export type PostKind = "news" | "announcement" | "recap";
 export type GameStatus = "scheduled" | "final" | "postponed";
+export type ScorebookEventFamily =
+  | "hit"
+  | "walk"
+  | "hbp"
+  | "strikeout"
+  | "out"
+  | "error"
+  | "fielder_choice"
+  | "sacrifice";
+export type ScorebookEventCode =
+  | "single"
+  | "double"
+  | "triple"
+  | "home_run"
+  | "bb"
+  | "hbp"
+  | "k"
+  | "go"
+  | "fo"
+  | "lo"
+  | "e"
+  | "fc"
+  | "sf"
+  | "sh"
+  | "dp";
+export type BaseDestination = "1" | "2" | "3" | "H" | "O";
+export type BaseKey = "first" | "second" | "third";
 
 export type LocaleContent = {
   es: string;
   en: string;
+};
+
+export type BaseState = {
+  first?: string;
+  second?: string;
+  third?: string;
+};
+
+export type RunnerAdvance = {
+  runnerId: string;
+  startBase: "B" | "1" | "2" | "3";
+  endBase: BaseDestination;
+};
+
+export type GameBattingEvent = {
+  id: string;
+  gameId: string;
+  seasonId: string;
+  squadId: SquadId;
+  sequenceNo: number;
+  inningNumber: number;
+  batterPlayerId: string;
+  eventFamily: ScorebookEventFamily;
+  eventCode: ScorebookEventCode;
+  hitZone?: "7" | "8" | "9";
+  fielderPath?: string;
+  outsBefore: number;
+  basesBefore: BaseState;
+  runnerAdvances: RunnerAdvance[];
+  rbiCount: number;
+  runsScoredCount: number;
+  notation: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type OpponentInningLine = {
+  gameId: string;
+  inningNumber: number;
+  runs: number;
+};
+
+export type GameScoringSnapshot = {
+  currentInning: number;
+  outs: number;
+  bases: BaseState;
+  comuRuns: number;
+  opponentRuns: number;
+  lastNotation?: string;
+  recentNotations: string[];
+};
+
+export type GameLineupEntry = {
+  gameId: string;
+  battingOrder: number;
+  playerId: string;
+  defensivePosition: string;
+};
+
+export type GameBattingBoxLine = {
+  playerId: string;
+  plateAppearances: number;
+  atBats: number;
+  runs: number;
+  hits: number;
+  runsBattedIn: number;
+  walks: number;
+  strikeouts: number;
+  homeRuns: number;
+  avg?: number | null;
+  ops?: number | null;
+};
+
+export type GameScoreboard = {
+  gameId: string;
+  comuAbbreviation: string;
+  opponentAbbreviation: string;
+  comuErrors: number;
+  opponentHits: number;
+  opponentErrors: number;
 };
 
 export type Squad = {
