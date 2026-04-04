@@ -10,10 +10,23 @@ import {
   teamStatsBySquad as seedTeamStatsBySquad
 } from "@/data/site-content";
 import { formatDate, getDictionary } from "@/lib/i18n";
+import {
+  buildGameScoringSnapshot,
+  deriveGameBattingBoxScore,
+  deriveGameHitTotal,
+  deriveRunsByInning
+} from "@/lib/scorebook";
 import { createAdminClient, isSupabaseConfigured } from "@/lib/supabase";
 import type {
+  BaseState,
   Gallery,
+  GameBattingEvent,
+  GameBattingBoxLine,
+  GameScoringSnapshot,
   Game,
+  GameLineupEntry,
+  GameScoreboard,
+  OpponentInningLine,
   Locale,
   LocaleContent,
   Player,
@@ -117,6 +130,51 @@ type GameRow = {
       key_moment: string;
     }
   >;
+};
+
+type GameBattingEventRow = {
+  id: string;
+  game_id: string;
+  season_id: string;
+  squad_id: SquadId | null;
+  sequence_no: number;
+  inning_number: number;
+  batter_player_id: string;
+  event_family: GameBattingEvent["eventFamily"];
+  event_code: GameBattingEvent["eventCode"];
+  hit_zone: string | null;
+  fielder_path: string | null;
+  outs_before: number;
+  bases_before: BaseState | null;
+  runner_advances: GameBattingEvent["runnerAdvances"] | null;
+  rbi_count: number;
+  runs_scored_count: number;
+  notation: string;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+type OpponentInningLineRow = {
+  game_id: string;
+  inning_number: number;
+  runs: number;
+};
+
+type GameLineupEntryRow = {
+  game_id: string;
+  batting_order: number;
+  player_id: string;
+  defensive_position: string;
+};
+
+type GameScoreboardRow = {
+  game_id: string;
+  comu_abbreviation: string;
+  opponent_abbreviation: string;
+  comu_errors: number;
+  opponent_hits: number;
+  opponent_errors: number;
 };
 
 type PostRow = {
@@ -372,6 +430,77 @@ function mapGames(rows: GameRow[] | null | undefined): Game[] {
     keyMoment: toLocaleContent(row.game_translations, (item) => item.key_moment),
     gallerySlug: undefined
   }));
+}
+
+function mapGameBattingEvents(rows: GameBattingEventRow[] | null | undefined): GameBattingEvent[] {
+  if (!rows?.length) {
+    return [];
+  }
+
+  return rows
+    .sort((a, b) => a.sequence_no - b.sequence_no)
+    .map((row) => ({
+      id: row.id,
+      gameId: row.game_id,
+      seasonId: row.season_id,
+      squadId: toSquadId(row.squad_id),
+      sequenceNo: row.sequence_no,
+      inningNumber: row.inning_number,
+      batterPlayerId: row.batter_player_id,
+      eventFamily: row.event_family,
+      eventCode: row.event_code,
+      hitZone: row.hit_zone === "7" || row.hit_zone === "8" || row.hit_zone === "9" ? row.hit_zone : undefined,
+      fielderPath: row.fielder_path ?? undefined,
+      outsBefore: row.outs_before,
+      basesBefore: row.bases_before ?? {},
+      runnerAdvances: Array.isArray(row.runner_advances) ? row.runner_advances : [],
+      rbiCount: row.rbi_count,
+      runsScoredCount: row.runs_scored_count,
+      notation: row.notation,
+      notes: row.notes ?? undefined,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at
+    }));
+}
+
+function mapOpponentLines(rows: OpponentInningLineRow[] | null | undefined): OpponentInningLine[] {
+  if (!rows?.length) {
+    return [];
+  }
+
+  return rows
+    .sort((a, b) => a.inning_number - b.inning_number)
+    .map((row) => ({
+      gameId: row.game_id,
+      inningNumber: row.inning_number,
+      runs: row.runs
+    }));
+}
+
+function mapLineupEntries(rows: GameLineupEntryRow[] | null | undefined): GameLineupEntry[] {
+  if (!rows?.length) {
+    return [];
+  }
+
+  return rows
+    .sort((a, b) => a.batting_order - b.batting_order)
+    .map((row) => ({
+      gameId: row.game_id,
+      battingOrder: row.batting_order,
+      playerId: row.player_id,
+      defensivePosition: row.defensive_position
+    }));
+}
+
+function mapScoreboard(row: GameScoreboardRow | null | undefined, gameId: string, opponent: string) {
+  return {
+    gameId,
+    comuAbbreviation: row?.comu_abbreviation || "COMU",
+    opponentAbbreviation: row?.opponent_abbreviation || opponent.slice(0, 3).toUpperCase(),
+    comuErrors: Number(row?.comu_errors ?? 0),
+    opponentHits: Number(row?.opponent_hits ?? 0),
+    opponentErrors: Number(row?.opponent_errors ?? 0)
+  } satisfies GameScoreboard;
 }
 
 function mapPosts(rows: PostRow[] | null | undefined): Post[] {
@@ -654,6 +783,126 @@ export async function getGameBySlug(slug: string, squadParam?: string) {
     filterGamesBySquad(data.games, selectedSquad.id).find((game) => game.slug === slug) ??
     data.games.find((game) => game.slug === slug)
   );
+}
+
+export async function getAdminGameScorebookPayload(gameId: string) {
+  const data = await getSiteData();
+  const game = data.games.find((item) => item.id === gameId);
+
+  if (!game) {
+    return null;
+  }
+
+  const roster = sortPlayers(
+    data.players.filter(
+      (player) =>
+        player.assignment.squadId === game.squadId &&
+        player.assignment.seasonId === game.seasonId
+    )
+  );
+
+  if (!isSupabaseConfigured()) {
+    const comuRunsByInning = deriveRunsByInning([]);
+    return {
+      game,
+      roster,
+      lineup: [],
+      lineupRoster: roster,
+      gameBattingLines: {},
+      comuRunsByInning,
+      comuHitTotal: deriveGameHitTotal([]),
+      scoreboard: mapScoreboard(null, game.id, game.opponent),
+      events: [],
+      opponentLines: [],
+      snapshot: buildGameScoringSnapshot(game, [], [])
+    } satisfies {
+      game: Game;
+      roster: Player[];
+      lineup: GameLineupEntry[];
+      lineupRoster: Player[];
+      gameBattingLines: Record<string, GameBattingBoxLine>;
+      comuRunsByInning: Map<number, number>;
+      comuHitTotal: number;
+      scoreboard: GameScoreboard;
+      events: GameBattingEvent[];
+      opponentLines: OpponentInningLine[];
+      snapshot: GameScoringSnapshot;
+    };
+  }
+
+  const client = createAdminClient();
+  if (!client) {
+    return null;
+  }
+
+  const [eventsResult, linesResult, lineupResult, scoreboardResult] = await Promise.all([
+    client
+      .from("game_batting_events")
+      .select("*")
+      .eq("game_id", gameId)
+      .order("sequence_no", { ascending: true }),
+    client
+      .from("game_opponent_linescore")
+      .select("*")
+      .eq("game_id", gameId)
+      .order("inning_number", { ascending: true }),
+    client
+      .from("game_lineup_entries")
+      .select("*")
+      .eq("game_id", gameId)
+      .order("batting_order", { ascending: true }),
+    client.from("game_scoreboards").select("*").eq("game_id", gameId).maybeSingle()
+  ]);
+
+  const events = mapGameBattingEvents(
+    (eventsResult.data as GameBattingEventRow[] | null | undefined) ?? []
+  );
+  const opponentLines = mapOpponentLines(
+    (linesResult.data as OpponentInningLineRow[] | null | undefined) ?? []
+  );
+  const lineup = mapLineupEntries(
+    (lineupResult.data as GameLineupEntryRow[] | null | undefined) ?? []
+  );
+  const lineupRoster =
+    lineup.length > 0
+      ? lineup
+          .map((entry) => roster.find((player) => player.id === entry.playerId))
+          .filter((player): player is Player => Boolean(player))
+      : roster;
+  const gameBattingLines = deriveGameBattingBoxScore(events);
+  const comuRunsByInning = deriveRunsByInning(events);
+  const comuHitTotal = deriveGameHitTotal(events);
+  const scoreboard = mapScoreboard(
+    scoreboardResult.data as GameScoreboardRow | null | undefined,
+    game.id,
+    game.opponent
+  );
+
+  return {
+    game,
+    roster,
+    lineup,
+    lineupRoster,
+    gameBattingLines,
+    comuRunsByInning,
+    comuHitTotal,
+    scoreboard,
+    events,
+    opponentLines,
+    snapshot: buildGameScoringSnapshot(game, events, opponentLines)
+  } satisfies {
+    game: Game;
+    roster: Player[];
+    lineup: GameLineupEntry[];
+    lineupRoster: Player[];
+    gameBattingLines: Record<string, GameBattingBoxLine>;
+    comuRunsByInning: Map<number, number>;
+    comuHitTotal: number;
+    scoreboard: GameScoreboard;
+    events: GameBattingEvent[];
+    opponentLines: OpponentInningLine[];
+    snapshot: GameScoringSnapshot;
+  };
 }
 
 export async function getPostBySlug(slug: string) {
