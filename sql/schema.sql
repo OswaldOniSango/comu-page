@@ -246,6 +246,68 @@ create table if not exists game_translations (
   primary key (game_id, locale)
 );
 
+create table if not exists game_batting_events (
+  id uuid primary key default gen_random_uuid(),
+  game_id uuid not null references games(id) on delete cascade,
+  season_id text not null references seasons(id) on delete cascade,
+  squad_id text not null references squads(id) on delete cascade,
+  sequence_no integer not null,
+  inning_number integer not null check (inning_number >= 1),
+  batter_player_id uuid not null references players(id) on delete cascade,
+  event_family text not null check (
+    event_family in ('hit', 'walk', 'hbp', 'strikeout', 'out', 'error', 'fielder_choice', 'sacrifice')
+  ),
+  event_code text not null check (
+    event_code in ('single', 'double', 'triple', 'home_run', 'bb', 'hbp', 'k', 'go', 'fo', 'lo', 'e', 'fc', 'sf', 'sh', 'dp')
+  ),
+  hit_zone text check (hit_zone in ('7', '8', '9')),
+  fielder_path text,
+  outs_before integer not null default 0 check (outs_before between 0 and 2),
+  bases_before jsonb not null default '{}'::jsonb,
+  runner_advances jsonb not null default '[]'::jsonb,
+  rbi_count integer not null default 0 check (rbi_count >= 0),
+  runs_scored_count integer not null default 0 check (runs_scored_count >= 0),
+  notation text not null default '',
+  notes text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (game_id, sequence_no)
+);
+
+create index if not exists game_batting_events_game_idx on game_batting_events (game_id, sequence_no);
+create index if not exists game_batting_events_season_squad_idx on game_batting_events (season_id, squad_id);
+
+create table if not exists game_opponent_linescore (
+  game_id uuid not null references games(id) on delete cascade,
+  inning_number integer not null check (inning_number >= 1),
+  runs integer not null default 0 check (runs >= 0),
+  primary key (game_id, inning_number)
+);
+
+create table if not exists game_lineup_entries (
+  game_id uuid not null references games(id) on delete cascade,
+  batting_order integer not null check (batting_order between 1 and 9),
+  player_id uuid not null references players(id) on delete cascade,
+  defensive_position text not null default 'DH',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  primary key (game_id, batting_order),
+  unique (game_id, player_id)
+);
+
+create index if not exists game_lineup_entries_game_idx on game_lineup_entries (game_id, batting_order);
+
+create table if not exists game_scoreboards (
+  game_id uuid primary key references games(id) on delete cascade,
+  comu_abbreviation text not null default 'COMU',
+  opponent_abbreviation text not null default 'RIV',
+  comu_errors integer not null default 0 check (comu_errors >= 0),
+  opponent_hits integer not null default 0 check (opponent_hits >= 0),
+  opponent_errors integer not null default 0 check (opponent_errors >= 0),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 create table if not exists posts (
   id uuid primary key default gen_random_uuid(),
   slug text not null unique,

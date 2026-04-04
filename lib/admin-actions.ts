@@ -4,9 +4,27 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { fromLocalDateTimeInput } from "@/lib/i18n";
+import {
+  buildScoreNotation,
+  cleanBaseState,
+  cleanRunnerAdvances,
+  deriveEventFamily,
+  derivePlayerBattingStats,
+  getComuRuns,
+  getOpponentRuns
+} from "@/lib/scorebook";
 import { requireAdminSession } from "@/lib/session";
 import { createAdminClient, isSupabaseConfigured } from "@/lib/supabase";
-import type { Locale, PlayerRole, PostKind, PublishStatus } from "@/lib/types";
+import type {
+  BaseDestination,
+  BaseState,
+  Locale,
+  PlayerRole,
+  PostKind,
+  PublishStatus,
+  RunnerAdvance,
+  ScorebookEventCode
+} from "@/lib/types";
 
 const STORAGE_BUCKET = "media";
 const MAX_IMAGE_SIZE = 1024 * 1024;
@@ -142,6 +160,356 @@ function maybeRedirect(redirectTo: string | null) {
   if (redirectTo) {
     redirect(redirectTo);
   }
+}
+
+type ScorebookEventRow = {
+  id: string;
+  game_id: string;
+  season_id: string;
+  squad_id: string;
+  sequence_no: number;
+  inning_number: number;
+  batter_player_id: string;
+  event_family: string;
+  event_code: ScorebookEventCode;
+  hit_zone: string | null;
+  fielder_path: string | null;
+  outs_before: number;
+  bases_before: BaseState | null;
+  runner_advances: RunnerAdvance[] | null;
+  rbi_count: number;
+  runs_scored_count: number;
+  notation: string;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+type TeamStatsRow = {
+  season_id: string;
+  squad_id: string;
+  wins: number;
+  losses: number;
+  runs_scored: number;
+  runs_allowed: number;
+  streak: string | null;
+  standing: string | null;
+};
+
+type PlayerSeasonStatsRow = {
+  player_id: string;
+  season_id: string;
+  squad_id: string;
+  games_played: number;
+  avg: number | null;
+  obp: number | null;
+  slg: number | null;
+  ops: number | null;
+  home_runs: number | null;
+  runs_batted_in: number | null;
+  runs: number | null;
+  stolen_bases: number | null;
+  wins: number | null;
+  losses: number | null;
+  era: number | null;
+  whip: number | null;
+  strikeouts: number | null;
+  saves: number | null;
+};
+
+type FinalGameRow = {
+  id: string;
+  is_home: boolean;
+  home_score: number | null;
+  away_score: number | null;
+};
+
+function parseBaseDestination(value: FormDataEntryValue | null, fallback: BaseDestination) {
+  const raw = String(value || fallback);
+  return raw === "1" || raw === "2" || raw === "3" || raw === "H" || raw === "O" ? raw : fallback;
+}
+
+function parseBaseState(formData: FormData) {
+  return cleanBaseState({
+    first: String(formData.get("baseFirstPlayerId") || ""),
+    second: String(formData.get("baseSecondPlayerId") || ""),
+    third: String(formData.get("baseThirdPlayerId") || "")
+  });
+}
+
+function parseRunnerAdvances(formData: FormData, batterPlayerId: string, baseState: BaseState) {
+  const advances: RunnerAdvance[] = [
+    {
+      runnerId: batterPlayerId,
+      startBase: "B",
+      endBase: parseBaseDestination(
+        formData.get("advanceBatter"),
+        parseBaseDestination(formData.get("defaultAdvanceBatter"), "1")
+      )
+    }
+  ];
+
+  if (baseState.first) {
+    advances.push({
+      runnerId: baseState.first,
+      startBase: "1",
+      endBase: parseBaseDestination(formData.get("advanceFirst"), "1")
+    });
+  }
+
+  if (baseState.second) {
+    advances.push({
+      runnerId: baseState.second,
+      startBase: "2",
+      endBase: parseBaseDestination(formData.get("advanceSecond"), "2")
+    });
+  }
+
+  if (baseState.third) {
+    advances.push({
+      runnerId: baseState.third,
+      startBase: "3",
+      endBase: parseBaseDestination(formData.get("advanceThird"), "3")
+    });
+  }
+
+  return cleanRunnerAdvances(advances);
+}
+
+function revalidateScorebook(locale: Locale, gameId: string) {
+  revalidatePath(`/${locale}/admin/games/${gameId}/scorebook`);
+  revalidatePath(`/${locale}/admin/games`);
+}
+
+function hasPitchingStats(row?: PlayerSeasonStatsRow) {
+  return Boolean(
+    row &&
+      [row.wins, row.losses, row.era, row.whip, row.strikeouts, row.saves].some((value) => value !== null)
+  );
+}
+
+async function resequenceGameEvents(
+  client: NonNullable<ReturnType<typeof createAdminClient>>,
+  gameId: string
+) {
+  const { data } = await client
+    .from("game_batting_events")
+    .select("id")
+    .eq("game_id", gameId)
+    .order("sequence_no", { ascending: true });
+
+  for (const [index, event] of (data ?? []).entries()) {
+    await client.from("game_batting_events").update({ sequence_no: index + 1 }).eq("id", event.id);
+  }
+}
+
+async function recomputeScorebookDerivedState(
+  client: NonNullable<ReturnType<typeof createAdminClient>>,
+  {
+    gameId,
+    seasonId,
+    squadId
+  }: {
+    gameId: string;
+    seasonId: string;
+    squadId: string;
+  }
+) {
+  const [seasonEventsResult, gameEventsResult, opponentLinesResult, gameResult, teamStatsResult, playerStatsResult, finalGamesResult] =
+    await Promise.all([
+      client
+        .from("game_batting_events")
+        .select("*")
+        .eq("season_id", seasonId)
+        .eq("squad_id", squadId)
+        .order("sequence_no", { ascending: true }),
+      client
+        .from("game_batting_events")
+        .select("*")
+        .eq("game_id", gameId)
+        .order("sequence_no", { ascending: true }),
+      client
+        .from("game_opponent_linescore")
+        .select("*")
+        .eq("game_id", gameId)
+        .order("inning_number", { ascending: true }),
+      client
+        .from("games")
+        .select("id, is_home, status")
+        .eq("id", gameId)
+        .single(),
+      client
+        .from("team_season_stats")
+        .select("*")
+        .eq("season_id", seasonId)
+        .eq("squad_id", squadId)
+        .maybeSingle(),
+      client
+        .from("player_season_stats")
+        .select("*")
+        .eq("season_id", seasonId)
+        .eq("squad_id", squadId),
+      client
+        .from("games")
+        .select("id, is_home, home_score, away_score")
+        .eq("season_id", seasonId)
+        .eq("squad_id", squadId)
+        .eq("status", "final")
+    ]);
+
+  const seasonEvents = (seasonEventsResult.data ?? []) as ScorebookEventRow[];
+  const gameEvents = (gameEventsResult.data ?? []) as ScorebookEventRow[];
+  const opponentLines = (opponentLinesResult.data ?? []) as Array<{ runs: number }>;
+  const game = gameResult.data as { id: string; is_home: boolean; status: string } | null;
+  const existingTeamStats = teamStatsResult.data as TeamStatsRow | null;
+  const existingPlayerStats = (playerStatsResult.data ?? []) as PlayerSeasonStatsRow[];
+  const finalGames = (finalGamesResult.data ?? []) as FinalGameRow[];
+
+  const comuRuns = getComuRuns(
+    gameEvents.map((event) => ({
+      id: event.id,
+      gameId: event.game_id,
+      seasonId: event.season_id,
+      squadId: event.squad_id === "a3" ? "a3" : "a1",
+      sequenceNo: event.sequence_no,
+      inningNumber: event.inning_number,
+      batterPlayerId: event.batter_player_id,
+      eventFamily: event.event_family as never,
+      eventCode: event.event_code,
+      hitZone: event.hit_zone === "7" || event.hit_zone === "8" || event.hit_zone === "9" ? event.hit_zone : undefined,
+      fielderPath: event.fielder_path ?? undefined,
+      outsBefore: event.outs_before,
+      basesBefore: event.bases_before ?? {},
+      runnerAdvances: event.runner_advances ?? [],
+      rbiCount: event.rbi_count,
+      runsScoredCount: event.runs_scored_count,
+      notation: event.notation,
+      notes: event.notes ?? undefined,
+      createdAt: event.created_at,
+      updatedAt: event.updated_at
+    }))
+  );
+  const opponentRuns = getOpponentRuns(
+    opponentLines.map((line, index) => ({
+      gameId,
+      inningNumber: index + 1,
+      runs: line.runs
+    }))
+  );
+
+  if (game) {
+    await client
+      .from("games")
+      .update(
+        game.is_home
+          ? { home_score: comuRuns, away_score: opponentRuns }
+          : { away_score: comuRuns, home_score: opponentRuns }
+      )
+      .eq("id", gameId);
+  }
+
+  const derivedBatting = derivePlayerBattingStats(
+    seasonEvents.map((event) => ({
+      id: event.id,
+      gameId: event.game_id,
+      seasonId: event.season_id,
+      squadId: event.squad_id === "a3" ? "a3" : "a1",
+      sequenceNo: event.sequence_no,
+      inningNumber: event.inning_number,
+      batterPlayerId: event.batter_player_id,
+      eventFamily: event.event_family as never,
+      eventCode: event.event_code,
+      hitZone: event.hit_zone === "7" || event.hit_zone === "8" || event.hit_zone === "9" ? event.hit_zone : undefined,
+      fielderPath: event.fielder_path ?? undefined,
+      outsBefore: event.outs_before,
+      basesBefore: event.bases_before ?? {},
+      runnerAdvances: event.runner_advances ?? [],
+      rbiCount: event.rbi_count,
+      runsScoredCount: event.runs_scored_count,
+      notation: event.notation,
+      notes: event.notes ?? undefined,
+      createdAt: event.created_at,
+      updatedAt: event.updated_at
+    }))
+  );
+
+  const playerIds = new Set([
+    ...Object.keys(derivedBatting),
+    ...existingPlayerStats.map((row) => row.player_id)
+  ]);
+
+  if (playerIds.size) {
+    const rows = [...playerIds].map((playerId) => {
+      const existing = existingPlayerStats.find((row) => row.player_id === playerId);
+      const derived = derivedBatting[playerId];
+
+      return {
+        player_id: playerId,
+        season_id: seasonId,
+        squad_id: squadId,
+        games_played:
+          derived?.gamesPlayed ??
+          (hasPitchingStats(existing) ? Number(existing?.games_played || 0) : 0),
+        avg: derived?.avg ?? null,
+        obp: derived?.obp ?? null,
+        slg: derived?.slg ?? null,
+        ops: derived?.ops ?? null,
+        home_runs: derived?.homeRuns ?? 0,
+        runs_batted_in: derived?.runsBattedIn ?? 0,
+        runs: derived?.runs ?? 0,
+        stolen_bases: existing?.stolen_bases ?? null,
+        wins: existing?.wins ?? null,
+        losses: existing?.losses ?? null,
+        era: existing?.era ?? null,
+        whip: existing?.whip ?? null,
+        strikeouts: existing?.strikeouts ?? null,
+        saves: existing?.saves ?? null
+      };
+    });
+
+    await client.from("player_season_stats").upsert(rows, {
+      onConflict: "player_id,season_id,squad_id"
+    });
+  }
+
+  const updatedFinalGames = finalGames.map((row) => {
+    if (row.id !== gameId || !game || game.status !== "final") {
+      return row;
+    }
+
+    return game.is_home
+      ? { ...row, home_score: comuRuns, away_score: opponentRuns }
+      : { ...row, away_score: comuRuns, home_score: opponentRuns };
+  });
+
+  const computedTeamLine = updatedFinalGames.reduce(
+    (totals, row) => {
+      const comuScore = row.is_home ? Number(row.home_score || 0) : Number(row.away_score || 0);
+      const oppScore = row.is_home ? Number(row.away_score || 0) : Number(row.home_score || 0);
+
+      return {
+        wins: totals.wins + (comuScore > oppScore ? 1 : 0),
+        losses: totals.losses + (comuScore < oppScore ? 1 : 0),
+        runsScored: totals.runsScored + comuScore,
+        runsAllowed: totals.runsAllowed + oppScore
+      };
+    },
+    { wins: 0, losses: 0, runsScored: 0, runsAllowed: 0 }
+  );
+
+  await client.from("team_season_stats").upsert(
+    {
+      season_id: seasonId,
+      squad_id: squadId,
+      wins: computedTeamLine.wins,
+      losses: computedTeamLine.losses,
+      runs_scored: computedTeamLine.runsScored,
+      runs_allowed: computedTeamLine.runsAllowed,
+      streak: existingTeamStats?.streak ?? "",
+      standing: existingTeamStats?.standing ?? ""
+    },
+    { onConflict: "season_id,squad_id" }
+  );
 }
 
 export async function savePlayerAction(formData: FormData) {
@@ -299,6 +667,203 @@ export async function saveGameAction(formData: FormData) {
   }
 
   await revalidateAll(locale);
+  maybeRedirect(redirectTo);
+}
+
+export async function saveGameBattingEventAction(formData: FormData) {
+  const locale = (formData.get("locale") as Locale) || "es";
+  const redirectTo = getRedirectTo(formData);
+  await ensureAdmin(locale);
+
+  if (!isSupabaseConfigured()) {
+    revalidateScorebook(locale, String(formData.get("gameId") || ""));
+    return;
+  }
+
+  const client = createAdminClient();
+  if (!client) {
+    return;
+  }
+
+  const id = String(formData.get("id") || "");
+  const gameId = String(formData.get("gameId") || "");
+  const seasonId = String(formData.get("seasonId") || "season-2026");
+  const squadId = String(formData.get("squadId") || "a1");
+  const batterPlayerId = String(formData.get("batterPlayerId") || "");
+  const eventCode = String(formData.get("eventCode") || "single") as ScorebookEventCode;
+  const baseState = parseBaseState(formData);
+  const runnerAdvances = parseRunnerAdvances(formData, batterPlayerId, baseState);
+  const notation = buildScoreNotation(
+    eventCode,
+    String(formData.get("hitZone") || "") || null,
+    String(formData.get("fielderPath") || "") || null
+  );
+  const runsScoredCount = runnerAdvances.filter((advance) => advance.endBase === "H").length;
+  const payload = {
+    game_id: gameId,
+    season_id: seasonId,
+    squad_id: squadId,
+    inning_number: Number(formData.get("inningNumber") || 1),
+    batter_player_id: batterPlayerId,
+    event_family: deriveEventFamily(eventCode),
+    event_code: eventCode,
+    hit_zone: String(formData.get("hitZone") || "") || null,
+    fielder_path: String(formData.get("fielderPath") || "") || null,
+    outs_before: Number(formData.get("outsBefore") || 0),
+    bases_before: baseState,
+    runner_advances: runnerAdvances,
+    rbi_count: Number(formData.get("rbiCount") || 0),
+    runs_scored_count: runsScoredCount,
+    notation,
+    notes: String(formData.get("notes") || "") || null
+  };
+
+  if (id) {
+    await client.from("game_batting_events").update(payload).eq("id", id);
+  } else {
+    const { count } = await client
+      .from("game_batting_events")
+      .select("id", { count: "exact", head: true })
+      .eq("game_id", gameId);
+
+    await client.from("game_batting_events").insert({
+      ...payload,
+      sequence_no: (count ?? 0) + 1
+    });
+  }
+
+  await resequenceGameEvents(client, gameId);
+  await recomputeScorebookDerivedState(client, { gameId, seasonId, squadId });
+  await revalidateAll(locale);
+  revalidateScorebook(locale, gameId);
+  maybeRedirect(redirectTo);
+}
+
+export async function deleteGameBattingEventAction(formData: FormData) {
+  const locale = (formData.get("locale") as Locale) || "es";
+  const redirectTo = getRedirectTo(formData);
+  await ensureAdmin(locale);
+
+  if (!isSupabaseConfigured()) {
+    revalidateScorebook(locale, String(formData.get("gameId") || ""));
+    return;
+  }
+
+  const client = createAdminClient();
+  const id = String(formData.get("id") || "");
+  const gameId = String(formData.get("gameId") || "");
+  const seasonId = String(formData.get("seasonId") || "season-2026");
+  const squadId = String(formData.get("squadId") || "a1");
+  if (!client || !id || !gameId) {
+    return;
+  }
+
+  await client.from("game_batting_events").delete().eq("id", id);
+  await resequenceGameEvents(client, gameId);
+  await recomputeScorebookDerivedState(client, { gameId, seasonId, squadId });
+  await revalidateAll(locale);
+  revalidateScorebook(locale, gameId);
+  maybeRedirect(redirectTo);
+}
+
+export async function saveOpponentLinescoreAction(formData: FormData) {
+  const locale = (formData.get("locale") as Locale) || "es";
+  const redirectTo = getRedirectTo(formData);
+  await ensureAdmin(locale);
+
+  if (!isSupabaseConfigured()) {
+    revalidateScorebook(locale, String(formData.get("gameId") || ""));
+    return;
+  }
+
+  const client = createAdminClient();
+  if (!client) {
+    return;
+  }
+
+  const gameId = String(formData.get("gameId") || "");
+  const seasonId = String(formData.get("seasonId") || "season-2026");
+  const squadId = String(formData.get("squadId") || "a1");
+
+  await client.from("game_scoreboards").upsert(
+    {
+      game_id: gameId,
+      comu_abbreviation: String(formData.get("comuAbbreviation") || "COMU"),
+      opponent_abbreviation: String(formData.get("opponentAbbreviation") || "RIV"),
+      comu_errors: Number(formData.get("comuErrors") || 0),
+      opponent_hits: Number(formData.get("opponentHits") || 0),
+      opponent_errors: Number(formData.get("opponentErrors") || 0)
+    },
+    { onConflict: "game_id" }
+  );
+
+  const innings = Array.from(formData.keys())
+    .filter((key) => key.startsWith("opponentRuns_"))
+    .map((key) => Number(key.replace("opponentRuns_", "")))
+    .filter((inning) => !Number.isNaN(inning))
+    .sort((a, b) => a - b);
+
+  for (const inning of innings) {
+    const runs = Number(formData.get(`opponentRuns_${inning}`) || 0);
+    await client.from("game_opponent_linescore").upsert(
+      {
+        game_id: gameId,
+        inning_number: inning,
+        runs
+      },
+      { onConflict: "game_id,inning_number" }
+    );
+  }
+
+  await recomputeScorebookDerivedState(client, { gameId, seasonId, squadId });
+  await revalidateAll(locale);
+  revalidateScorebook(locale, gameId);
+  maybeRedirect(redirectTo);
+}
+
+export async function saveGameLineupAction(formData: FormData) {
+  const locale = (formData.get("locale") as Locale) || "es";
+  const redirectTo = getRedirectTo(formData);
+  await ensureAdmin(locale);
+
+  if (!isSupabaseConfigured()) {
+    revalidateScorebook(locale, String(formData.get("gameId") || ""));
+    return;
+  }
+
+  const client = createAdminClient();
+  if (!client) {
+    return;
+  }
+
+  const gameId = String(formData.get("gameId") || "");
+  const entries = Array.from({ length: 9 }, (_, index) => index + 1)
+    .map((battingOrder) => ({
+      battingOrder,
+      playerId: String(formData.get(`lineupPlayer_${battingOrder}`) || ""),
+      defensivePosition: String(formData.get(`lineupPosition_${battingOrder}`) || "DH")
+    }))
+    .filter((entry) => entry.playerId);
+
+  const dedupedEntries = entries.filter(
+    (entry, index, list) => list.findIndex((candidate) => candidate.playerId === entry.playerId) === index
+  );
+
+  await client.from("game_lineup_entries").delete().eq("game_id", gameId);
+
+  if (dedupedEntries.length) {
+    await client.from("game_lineup_entries").insert(
+      dedupedEntries.map((entry) => ({
+        game_id: gameId,
+        batting_order: entry.battingOrder,
+        player_id: entry.playerId,
+        defensive_position: entry.defensivePosition
+      }))
+    );
+  }
+
+  await revalidateAll(locale);
+  revalidateScorebook(locale, gameId);
   maybeRedirect(redirectTo);
 }
 

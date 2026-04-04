@@ -8,6 +8,7 @@ import { deleteGameAction, saveGameAction } from "@/lib/admin-actions";
 import { getSiteData, resolveSelectedSquad, sortGames } from "@/lib/content";
 import { getDictionary, isLocale, toLocalDateTimeInputValue } from "@/lib/i18n";
 import { requireAdminSession } from "@/lib/session";
+import { isSupabaseConfigured } from "@/lib/supabase";
 import { notFound } from "next/navigation";
 
 function GameForm({
@@ -220,6 +221,14 @@ export default async function AdminGamesPage({
                 </p>
               </div>
               <div className="flex gap-3">
+                {selectedSquad.id === "a1" && isSupabaseConfigured() ? (
+                  <Link
+                    href={`/${locale}/admin/games/${game.id}/scorebook`}
+                    className="rounded-full border border-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-white/80 hover:border-gold hover:text-gold"
+                  >
+                    Anotar
+                  </Link>
+                ) : null}
                 <Link
                   href={`${basePath}?squad=${selectedSquad.id}&edit=${game.id}`}
                   className="rounded-full border border-gold/30 px-4 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-gold"
