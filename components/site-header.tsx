@@ -27,8 +27,8 @@ export function SiteHeader({ locale, nav }: Props) {
   ];
 
   return (
-    <header className="sticky top-0 z-40 border-b border-white/10 bg-black/65 backdrop-blur-xl">
-      <div className="mx-auto max-w-7xl px-4 py-3 sm:px-6 lg:px-8">
+    <header className="sticky top-0 z-40 overflow-x-clip border-b border-white/10 bg-black/65 backdrop-blur-xl">
+      <div className="mx-auto max-w-7xl min-w-0 px-4 py-3 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between gap-4">
           <Link href={`/${locale}`} className="flex min-w-0 items-center gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gold text-lg font-black text-ink sm:h-11 sm:w-11 sm:text-xl">
@@ -67,23 +67,25 @@ export function SiteHeader({ locale, nav }: Props) {
             <LocaleSwitcher currentLocale={locale} />
           </div>
         </div>
-        <nav className="mt-4 flex gap-4 overflow-x-auto pb-1 lg:hidden">
-          {items.map((item) => (
+        <div className="mt-4 lg:hidden">
+          <nav className="flex flex-wrap gap-2">
+            {items.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="rounded-full border border-white/10 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-white/70"
+              >
+                {item.label}
+              </Link>
+            ))}
             <Link
-              key={item.href}
-              href={item.href}
-              className="whitespace-nowrap rounded-full border border-white/10 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-white/70"
+              href={`/${locale}/admin`}
+              className="rounded-full border border-gold/40 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-gold"
             >
-              {item.label}
+              {nav.admin}
             </Link>
-          ))}
-          <Link
-            href={`/${locale}/admin`}
-            className="whitespace-nowrap rounded-full border border-gold/40 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-gold"
-          >
-            {nav.admin}
-          </Link>
-        </nav>
+          </nav>
+        </div>
       </div>
     </header>
   );

@@ -114,6 +114,7 @@ export type GameScoreboard = {
   gameId: string;
   comuAbbreviation: string;
   opponentAbbreviation: string;
+  comuRunsByInning: Record<string, number>;
   comuErrors: number;
   opponentHits: number;
   opponentErrors: number;

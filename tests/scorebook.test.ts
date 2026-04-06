@@ -5,7 +5,9 @@ import {
   buildScoreNotation,
   deriveGameBattingBoxScore,
   derivePlayerBattingStats,
-  groupEventsByInning
+  groupEventsByInning,
+  mapStoredRunsByInning,
+  sumStoredRunsByInning
 } from "@/lib/scorebook";
 import type { GameBattingEvent } from "@/lib/types";
 
@@ -165,5 +167,13 @@ describe("scorebook helpers", () => {
     expect(box["player-2"]?.homeRuns).toBe(1);
     expect(box["player-2"]?.runs).toBe(1);
     expect(box["player-2"]?.avg).toBe(1);
+  });
+
+  it("maps and sums manually stored runs by inning", () => {
+    const runs = mapStoredRunsByInning({ "1": 2, "2": 0, "5": 3 });
+
+    expect(runs.get(1)).toBe(2);
+    expect(runs.get(5)).toBe(3);
+    expect(sumStoredRunsByInning({ "1": 2, "2": 0, "5": 3 })).toBe(5);
   });
 });
