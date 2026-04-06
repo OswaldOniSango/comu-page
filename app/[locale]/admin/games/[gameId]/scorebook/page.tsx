@@ -88,6 +88,8 @@ function EventEditorForm({
   squadId,
   roster,
   battingRoster,
+  initialPlayerId,
+  initialInningNumber,
   event,
   duplicate
 }: {
@@ -98,6 +100,8 @@ function EventEditorForm({
   squadId: string;
   roster: ScorebookPayload["roster"];
   battingRoster: ScorebookPayload["lineupRoster"];
+  initialPlayerId?: string;
+  initialInningNumber?: number;
   event?: GameBattingEvent;
   duplicate?: boolean;
 }) {
@@ -121,7 +125,7 @@ function EventEditorForm({
             name="inningNumber"
             type="number"
             min={1}
-            defaultValue={event?.inningNumber ?? 1}
+            defaultValue={event?.inningNumber ?? initialInningNumber ?? 1}
             className={fieldClassName()}
           />
         </label>
@@ -129,7 +133,9 @@ function EventEditorForm({
           Bateador
           <select
             name="batterPlayerId"
-            defaultValue={event?.batterPlayerId ?? battingRoster[0]?.id ?? roster[0]?.id ?? ""}
+            defaultValue={
+              event?.batterPlayerId ?? initialPlayerId ?? battingRoster[0]?.id ?? roster[0]?.id ?? ""
+            }
             className={fieldClassName()}
           >
             {battingRoster.map((player) => (
@@ -347,18 +353,24 @@ function LineupManagerForm({
       <input type="hidden" name="redirectTo" value={redirectTo} />
       <input type="hidden" name="gameId" value={gameId} />
 
-      <div className="space-y-3">
+      <div className="grid grid-cols-[52px_minmax(0,1fr)_88px] gap-2 px-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/40">
+        <div>#</div>
+        <div>Jugador</div>
+        <div>Pos</div>
+      </div>
+
+      <div className="space-y-2">
         {Array.from({ length: 9 }, (_, index) => index + 1).map((spot) => {
           const entry = lineup.find((item) => item.battingOrder === spot);
           return (
-            <div key={spot} className="grid gap-3 sm:grid-cols-[56px_minmax(0,1fr)_92px]">
-              <div className="flex items-center justify-center rounded-xl border border-white/10 bg-black/25 text-sm font-semibold text-gold">
+            <div key={spot} className="grid grid-cols-[52px_minmax(0,1fr)_88px] gap-2">
+              <div className="flex h-12 items-center justify-center rounded-xl border border-white/10 bg-black/25 text-sm font-semibold text-gold">
                 {spot}
               </div>
               <select
                 name={`lineupPlayer_${spot}`}
                 defaultValue={entry?.playerId ?? ""}
-                className={fieldClassName()}
+                className="h-12 min-w-0 rounded-xl border border-white/10 bg-black/30 px-4 text-sm text-white outline-none transition focus:border-gold/50"
               >
                 <option className="bg-ink" value="">
                   Sin asignar
@@ -372,7 +384,7 @@ function LineupManagerForm({
               <select
                 name={`lineupPosition_${spot}`}
                 defaultValue={entry?.defensivePosition ?? "DH"}
-                className={fieldClassName()}
+                className="h-12 rounded-xl border border-white/10 bg-black/30 px-3 text-sm text-white outline-none transition focus:border-gold/50"
               >
                 {DEFENSIVE_POSITIONS.map((position) => (
                   <option key={position} value={position} className="bg-ink">
@@ -400,7 +412,13 @@ export default async function AdminGameScorebookPage({
   searchParams
 }: {
   params: Promise<{ locale: string; gameId: string }>;
-  searchParams: Promise<{ tab?: string; edit?: string; duplicate?: string }>;
+  searchParams: Promise<{
+    tab?: string;
+    edit?: string;
+    duplicate?: string;
+    createPlayer?: string;
+    createInning?: string;
+  }>;
 }) {
   const { locale, gameId } = await params;
   const query = await searchParams;
@@ -430,9 +448,11 @@ export default async function AdminGameScorebookPage({
     opponentLines,
     snapshot
   } = payload;
-  const activeTab = query.tab === "planilla" ? "planilla" : "captura";
+  const activeTab = query.tab === "planilla" ? "planilla" : "resumen";
   const editingEvent = events.find((event) => event.id === query.edit);
   const duplicateEvent = events.find((event) => event.id === query.duplicate);
+  const creatingPlayerId = query.createPlayer || "";
+  const creatingInningNumber = Number(query.createInning || 0) || undefined;
   const maxInning = Math.max(
     9,
     ...events.map((event) => event.inningNumber),
@@ -440,7 +460,7 @@ export default async function AdminGameScorebookPage({
   );
   const innings = Array.from({ length: maxInning }, (_, index) => index + 1);
   const basePath = `/${locale}/admin/games/${gameId}/scorebook`;
-  const capturePath = `${basePath}?tab=captura`;
+  const summaryPath = `${basePath}?tab=resumen`;
   const boardPath = `${basePath}?tab=planilla`;
 
   return (
@@ -608,12 +628,12 @@ export default async function AdminGameScorebookPage({
 
         <div className="mt-6 flex flex-wrap gap-3">
           <Link
-            href={capturePath}
+            href={summaryPath}
             className={`rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] ${
-              activeTab === "captura" ? "bg-gold text-ink" : "border border-white/10 text-white/70"
+              activeTab === "resumen" ? "bg-gold text-ink" : "border border-white/10 text-white/70"
             }`}
           >
-            Captura
+            Resumen
           </Link>
           <Link
             href={boardPath}
@@ -627,27 +647,49 @@ export default async function AdminGameScorebookPage({
       </section>
 
       {isSupabaseConfigured() && game.squadId === "a1" ? (
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,1.3fr)_360px]">
+        <div className={`grid gap-6 ${activeTab === "planilla" ? "2xl:grid-cols-[minmax(0,1fr)_340px]" : "xl:grid-cols-[minmax(0,1.3fr)_360px]"}`}>
           <div className="space-y-6">
-            {activeTab === "captura" ? (
+            {activeTab === "resumen" ? (
               <section className="panel p-6">
                 <div className="mb-5">
                   <h2 className="font-[var(--font-display)] text-2xl uppercase tracking-[0.05em] text-white">
-                    Cargar jugada
+                    Resumen del juego
                   </h2>
                   <p className="mt-2 text-sm text-white/65">
-                    Primero selecciona el bateador, luego el resultado y finalmente el avance de corredores.
+                    Desde aquí revisas el estado general. Las jugadas nuevas se cargan directamente desde la planilla.
                   </p>
                 </div>
-                <EventEditorForm
-                  locale={locale}
-                  redirectTo={capturePath}
-                  gameId={game.id}
-                  seasonId={game.seasonId}
-                  squadId={game.squadId}
-                  roster={roster}
-                  battingRoster={lineupRoster}
-                />
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="rounded-xl border border-white/10 bg-black/25 p-4">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/45">
+                      Ultima jugada
+                    </p>
+                    <p className="mt-2 text-base text-white">{snapshot.lastNotation || "Sin jugadas"}</p>
+                  </div>
+                  <div className="rounded-xl border border-white/10 bg-black/25 p-4">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/45">
+                      Turnos cargados
+                    </p>
+                    <p className="mt-2 text-base text-white">{events.length}</p>
+                  </div>
+                  <div className="rounded-xl border border-white/10 bg-black/25 p-4">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/45">
+                      Headline
+                    </p>
+                    <p className="mt-2 text-sm text-white/75">
+                      {localizeText(locale, game.headline) || "Sin titular"}
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-white/10 bg-black/25 p-4">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/45">
+                      Summary
+                    </p>
+                    <p className="mt-2 text-sm text-white/75">
+                      {localizeText(locale, game.summary) || "Sin resumen"}
+                    </p>
+                  </div>
+                </div>
               </section>
             ) : (
               <section className="panel p-6">
@@ -661,41 +703,41 @@ export default async function AdminGameScorebookPage({
                 </div>
 
                 {lineup.length ? (
-                  <div className="overflow-x-auto">
-                    <div className="min-w-[1550px]">
-                      <div
-                        className="grid gap-x-2 gap-y-3 text-sm"
-                        style={{
-                          gridTemplateColumns: `56px minmax(220px,1.6fr) 64px repeat(${innings.length}, minmax(72px, 1fr)) 56px repeat(8, 58px)`
-                        }}
-                      >
-                        <div className="font-semibold text-white/65">#</div>
-                        <div className="font-semibold text-white/65">Bateadores - {scoreboard.comuAbbreviation}</div>
-                        <div className="text-center font-semibold text-white/65">Pos</div>
-                        {innings.map((inning) => (
-                          <div key={`inning-head-${inning}`} className="text-center font-semibold text-white/65">
-                            {inning}
-                          </div>
-                        ))}
-                        <div className="text-center font-semibold text-white/65">AB</div>
-                        <div className="text-center font-semibold text-white/65">R</div>
-                        <div className="text-center font-semibold text-white/65">H</div>
-                        <div className="text-center font-semibold text-white/65">RBI</div>
-                        <div className="text-center font-semibold text-white/65">BB</div>
-                        <div className="text-center font-semibold text-white/65">K</div>
-                        <div className="text-center font-semibold text-white/65">AVG</div>
-                        <div className="text-center font-semibold text-white/65">OPS</div>
-
+                  <div className="-mx-2 overflow-x-auto px-2 pb-2">
+                    <p className="mb-4 text-xs uppercase tracking-[0.18em] text-white/45">
+                      Desliza horizontalmente para ver innings y totales.
+                    </p>
+                    <table className="min-w-[1280px] border-separate border-spacing-y-2 text-sm">
+                      <thead>
+                        <tr className="text-left text-white/65">
+                          <th className="w-12 px-2 py-2 font-semibold">#</th>
+                          <th className="w-[240px] px-2 py-2 font-semibold">
+                            Bateadores - {scoreboard.comuAbbreviation}
+                          </th>
+                          <th className="w-16 px-2 py-2 text-center font-semibold">Pos</th>
+                          {innings.map((inning) => (
+                            <th key={`inning-head-${inning}`} className="w-[76px] px-1 py-2 text-center font-semibold">
+                              {inning}
+                            </th>
+                          ))}
+                          {["AB", "R", "H", "RBI", "BB", "K", "AVG", "OPS"].map((label) => (
+                            <th key={label} className="w-[58px] px-1 py-2 text-center font-semibold">
+                              {label}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
                         {lineup.map((entry) => {
                           const player = roster.find((item) => item.id === entry.playerId);
                           const line = gameBattingLines[entry.playerId];
 
                           return (
-                            <div key={`${entry.battingOrder}-${entry.playerId}`} className="contents">
-                              <div className="flex items-center justify-center rounded-lg border border-white/10 bg-black/25 text-sm font-semibold text-gold">
+                            <tr key={`${entry.battingOrder}-${entry.playerId}`}>
+                              <td className="rounded-l-xl border border-white/10 bg-black/25 px-2 py-3 text-center font-semibold text-gold">
                                 {entry.battingOrder}
-                              </div>
-                              <div className="flex items-center rounded-lg border border-white/10 bg-black/25 px-3 py-3 text-white">
+                              </td>
+                              <td className="border-y border-white/10 bg-black/25 px-3 py-3 text-white">
                                 <div className="min-w-0">
                                   <p className="truncate font-semibold">
                                     {player ? `${player.lastName}, ${player.firstName}` : "Jugador"}
@@ -704,80 +746,102 @@ export default async function AdminGameScorebookPage({
                                     {player ? `#${player.assignment.jerseyNumber}` : ""}
                                   </p>
                                 </div>
-                              </div>
-                              <div className="flex items-center justify-center rounded-lg border border-white/10 bg-black/25 text-white/75">
+                              </td>
+                              <td className="border-y border-white/10 bg-black/25 px-2 py-3 text-center text-white/75">
                                 {entry.defensivePosition}
-                              </div>
-
+                              </td>
                               {innings.map((inning) => {
                                 const inningEvents = getPlayerEventsByInning(events, entry.playerId, inning);
 
                                 return (
-                                  <div
+                                  <td
                                     key={`${entry.playerId}-inning-${inning}`}
-                                    className="min-h-[74px] rounded-lg border border-white/10 bg-black/20 p-2"
+                                    className="border-y border-white/10 bg-black/20 px-1 py-2"
                                   >
                                     {inningEvents.length ? (
-                                      <div className="flex h-full flex-col justify-center gap-1">
+                                      <div className="flex min-h-[56px] flex-col justify-center gap-1">
                                         {inningEvents.map((event) => (
                                           <Link
                                             key={event.id}
                                             href={`${basePath}?tab=planilla&edit=${event.id}`}
-                                            className="rounded-md border border-gold/20 bg-gold/10 px-2 py-1 text-center text-[11px] font-semibold uppercase tracking-[0.08em] text-gold transition hover:border-gold/40"
+                                            className="rounded-md border border-gold/20 bg-gold/10 px-1 py-1 text-center text-[10px] font-semibold uppercase tracking-[0.06em] text-gold transition hover:border-gold/40"
                                           >
                                             {event.notation}
                                           </Link>
                                         ))}
                                       </div>
                                     ) : (
-                                      <div className="flex h-full items-center justify-center text-white/20">•</div>
+                                      <Link
+                                        href={`${basePath}?tab=planilla&createPlayer=${entry.playerId}&createInning=${inning}`}
+                                        className="flex min-h-[56px] items-center justify-center rounded-md border border-dashed border-white/10 text-white/20 transition hover:border-gold/30 hover:text-gold"
+                                      >
+                                        +
+                                      </Link>
                                     )}
-                                  </div>
+                                  </td>
                                 );
                               })}
-
-                              <div className="flex items-center justify-center text-white">{line?.atBats ?? 0}</div>
-                              <div className="flex items-center justify-center text-white">{line?.runs ?? 0}</div>
-                              <div className="flex items-center justify-center text-white">{line?.hits ?? 0}</div>
-                              <div className="flex items-center justify-center text-white">{line?.runsBattedIn ?? 0}</div>
-                              <div className="flex items-center justify-center text-white">{line?.walks ?? 0}</div>
-                              <div className="flex items-center justify-center text-white">{line?.strikeouts ?? 0}</div>
-                              <div className="flex items-center justify-center text-white">{formatRate(line?.avg)}</div>
-                              <div className="flex items-center justify-center text-white">{formatRate(line?.ops)}</div>
-                            </div>
+                              <td className="border-y border-white/10 bg-black/25 px-1 py-3 text-center text-white">
+                                {line?.atBats ?? 0}
+                              </td>
+                              <td className="border-y border-white/10 bg-black/25 px-1 py-3 text-center text-white">
+                                {line?.runs ?? 0}
+                              </td>
+                              <td className="border-y border-white/10 bg-black/25 px-1 py-3 text-center text-white">
+                                {line?.hits ?? 0}
+                              </td>
+                              <td className="border-y border-white/10 bg-black/25 px-1 py-3 text-center text-white">
+                                {line?.runsBattedIn ?? 0}
+                              </td>
+                              <td className="border-y border-white/10 bg-black/25 px-1 py-3 text-center text-white">
+                                {line?.walks ?? 0}
+                              </td>
+                              <td className="border-y border-white/10 bg-black/25 px-1 py-3 text-center text-white">
+                                {line?.strikeouts ?? 0}
+                              </td>
+                              <td className="border-y border-white/10 bg-black/25 px-1 py-3 text-center text-white">
+                                {formatRate(line?.avg)}
+                              </td>
+                              <td className="rounded-r-xl border border-white/10 bg-black/25 px-1 py-3 text-center text-white">
+                                {formatRate(line?.ops)}
+                              </td>
+                            </tr>
                           );
                         })}
-
-                        <div className="pt-4 font-semibold text-white">Totales</div>
-                        <div />
-                        <div />
-                        {innings.map((inning) => (
-                          <div key={`total-inning-${inning}`} className="flex items-center justify-center pt-4 font-semibold text-gold">
-                            {comuRunsByInning.get(inning) ?? 0}
-                          </div>
-                        ))}
-                        <div className="flex items-center justify-center pt-4 font-semibold text-white">
-                          {lineup.reduce((total, entry) => total + (gameBattingLines[entry.playerId]?.atBats ?? 0), 0)}
-                        </div>
-                        <div className="flex items-center justify-center pt-4 font-semibold text-white">
-                          {lineup.reduce((total, entry) => total + (gameBattingLines[entry.playerId]?.runs ?? 0), 0)}
-                        </div>
-                        <div className="flex items-center justify-center pt-4 font-semibold text-white">
-                          {lineup.reduce((total, entry) => total + (gameBattingLines[entry.playerId]?.hits ?? 0), 0)}
-                        </div>
-                        <div className="flex items-center justify-center pt-4 font-semibold text-white">
-                          {lineup.reduce((total, entry) => total + (gameBattingLines[entry.playerId]?.runsBattedIn ?? 0), 0)}
-                        </div>
-                        <div className="flex items-center justify-center pt-4 font-semibold text-white">
-                          {lineup.reduce((total, entry) => total + (gameBattingLines[entry.playerId]?.walks ?? 0), 0)}
-                        </div>
-                        <div className="flex items-center justify-center pt-4 font-semibold text-white">
-                          {lineup.reduce((total, entry) => total + (gameBattingLines[entry.playerId]?.strikeouts ?? 0), 0)}
-                        </div>
-                        <div />
-                        <div />
-                      </div>
-                    </div>
+                      </tbody>
+                      <tfoot>
+                        <tr className="text-sm font-semibold">
+                          <td className="px-2 pt-3 text-white">Totales</td>
+                          <td />
+                          <td />
+                          {innings.map((inning) => (
+                            <td key={`total-inning-${inning}`} className="px-1 pt-3 text-center text-gold">
+                              {comuRunsByInning.get(inning) ?? 0}
+                            </td>
+                          ))}
+                          <td className="px-1 pt-3 text-center text-white">
+                            {lineup.reduce((total, entry) => total + (gameBattingLines[entry.playerId]?.atBats ?? 0), 0)}
+                          </td>
+                          <td className="px-1 pt-3 text-center text-white">
+                            {lineup.reduce((total, entry) => total + (gameBattingLines[entry.playerId]?.runs ?? 0), 0)}
+                          </td>
+                          <td className="px-1 pt-3 text-center text-white">
+                            {lineup.reduce((total, entry) => total + (gameBattingLines[entry.playerId]?.hits ?? 0), 0)}
+                          </td>
+                          <td className="px-1 pt-3 text-center text-white">
+                            {lineup.reduce((total, entry) => total + (gameBattingLines[entry.playerId]?.runsBattedIn ?? 0), 0)}
+                          </td>
+                          <td className="px-1 pt-3 text-center text-white">
+                            {lineup.reduce((total, entry) => total + (gameBattingLines[entry.playerId]?.walks ?? 0), 0)}
+                          </td>
+                          <td className="px-1 pt-3 text-center text-white">
+                            {lineup.reduce((total, entry) => total + (gameBattingLines[entry.playerId]?.strikeouts ?? 0), 0)}
+                          </td>
+                          <td />
+                          <td />
+                        </tr>
+                      </tfoot>
+                    </table>
                   </div>
                 ) : (
                   <div className="rounded-xl border border-dashed border-white/10 px-4 py-6 text-sm text-white/45">
@@ -875,50 +939,44 @@ export default async function AdminGameScorebookPage({
               />
             </section>
 
-            <section className="panel p-6">
-              <h2 className="font-[var(--font-display)] text-2xl uppercase tracking-[0.05em] text-white">
-                Resumen
-              </h2>
-              <div className="mt-5 space-y-4 text-sm text-white/70">
-                <div className="rounded-xl border border-white/10 bg-black/25 p-4">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/45">
-                    Última jugada
-                  </p>
-                  <p className="mt-2 text-base text-white">
-                    {snapshot.lastNotation || "Sin jugadas"}
-                  </p>
+            {activeTab === "planilla" ? (
+              <section className="panel p-6">
+                <h2 className="font-[var(--font-display)] text-2xl uppercase tracking-[0.05em] text-white">
+                  Acciones
+                </h2>
+                <div className="mt-5 space-y-4 text-sm text-white/70">
+                  <div className="rounded-xl border border-white/10 bg-black/25 p-4">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/45">
+                      Como cargar
+                    </p>
+                    <p className="mt-2 text-sm text-white/75">
+                      Haz click en una celda vacía para crear una jugada en ese inning y jugador. Haz click en una anotación existente para editarla.
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-white/10 bg-black/25 p-4">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/45">
+                      Última jugada
+                    </p>
+                    <p className="mt-2 text-base text-white">{snapshot.lastNotation || "Sin jugadas"}</p>
+                  </div>
                 </div>
-                <div className="rounded-xl border border-white/10 bg-black/25 p-4">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/45">
-                    Turnos cargados
-                  </p>
-                  <p className="mt-2 text-base text-white">{events.length}</p>
-                </div>
-                <div className="rounded-xl border border-white/10 bg-black/25 p-4">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/45">
-                    Headline
-                  </p>
-                  <p className="mt-2 text-sm text-white/75">
-                    {localizeText(locale, game.headline) || "Sin titular"}
-                  </p>
-                </div>
-                <div className="rounded-xl border border-white/10 bg-black/25 p-4">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/45">
-                    Summary
-                  </p>
-                  <p className="mt-2 text-sm text-white/75">
-                    {localizeText(locale, game.summary) || "Sin resumen"}
-                  </p>
-                </div>
-              </div>
-            </section>
+              </section>
+            ) : null}
           </aside>
         </div>
       ) : null}
 
-      {(editingEvent || duplicateEvent) && isSupabaseConfigured() && game.squadId === "a1" ? (
+      {(editingEvent || duplicateEvent || (creatingPlayerId && creatingInningNumber)) &&
+      isSupabaseConfigured() &&
+      game.squadId === "a1" ? (
         <AdminModal
-          title={editingEvent ? `Editar ${editingEvent.notation}` : `Duplicar ${duplicateEvent?.notation}`}
+          title={
+            editingEvent
+              ? `Editar ${editingEvent.notation}`
+              : duplicateEvent
+                ? `Duplicar ${duplicateEvent?.notation}`
+                : "Nueva jugada"
+          }
           closeHref={`${basePath}?tab=${activeTab}`}
         >
           <EventEditorForm
@@ -929,6 +987,8 @@ export default async function AdminGameScorebookPage({
             squadId={game.squadId}
             roster={roster}
             battingRoster={lineupRoster}
+            initialPlayerId={creatingPlayerId}
+            initialInningNumber={creatingInningNumber}
             event={editingEvent ?? duplicateEvent}
             duplicate={Boolean(duplicateEvent && !editingEvent)}
           />

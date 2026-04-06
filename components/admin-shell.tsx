@@ -20,12 +20,12 @@ export function AdminShell({ locale, labels, children }: Props) {
   return (
     <div className="page-shell admin-grid">
       <AdminSidebar locale={locale} labels={labels} />
-      <div className="space-y-6">
-        <div className="flex justify-end">
+      <div className="min-w-0 space-y-4 lg:space-y-6">
+        <div className="flex justify-start sm:justify-end">
           <form action={`/api/auth/logout?locale=${locale}`} method="post">
             <button
               type="submit"
-              className="rounded-full border border-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-white/70 hover:border-gold hover:text-gold"
+              className="rounded-full border border-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-white/70 hover:border-gold hover:text-gold"
             >
               {labels.signOut ?? "Sign out"}
             </button>
