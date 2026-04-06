@@ -301,12 +301,16 @@ create table if not exists game_scoreboards (
   game_id uuid primary key references games(id) on delete cascade,
   comu_abbreviation text not null default 'COMU',
   opponent_abbreviation text not null default 'RIV',
+  comu_runs_by_inning jsonb not null default '{}'::jsonb,
   comu_errors integer not null default 0 check (comu_errors >= 0),
   opponent_hits integer not null default 0 check (opponent_hits >= 0),
   opponent_errors integer not null default 0 check (opponent_errors >= 0),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table if exists game_scoreboards
+  add column if not exists comu_runs_by_inning jsonb not null default '{}'::jsonb;
 
 create table if not exists posts (
   id uuid primary key default gen_random_uuid(),

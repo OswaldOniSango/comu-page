@@ -332,6 +332,27 @@ export function deriveRunsByInning(events: GameBattingEvent[]) {
   return runs;
 }
 
+export function mapStoredRunsByInning(record?: Record<string, number> | null) {
+  const runs = new Map<number, number>();
+
+  for (const [inningKey, value] of Object.entries(record ?? {})) {
+    const inning = Number(inningKey);
+    const parsedRuns = Number(value);
+
+    if (Number.isNaN(inning) || inning < 1 || Number.isNaN(parsedRuns) || parsedRuns < 0) {
+      continue;
+    }
+
+    runs.set(inning, parsedRuns);
+  }
+
+  return runs;
+}
+
+export function sumStoredRunsByInning(record?: Record<string, number> | null) {
+  return [...mapStoredRunsByInning(record).values()].reduce((total, runs) => total + runs, 0);
+}
+
 export function deriveGameHitTotal(events: GameBattingEvent[]) {
   return events.filter((event) => getHitValue(event.eventCode) > 0).length;
 }

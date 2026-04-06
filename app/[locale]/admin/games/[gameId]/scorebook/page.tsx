@@ -514,7 +514,7 @@ export default async function AdminGameScorebookPage({
                 Score Horizontal
               </p>
               <p className="mt-1 text-sm text-white/65">
-                Edita el rival aquí arriba y guarda el score directamente desde esta tabla.
+                Edita los innings de ambos equipos y guarda el score directamente desde esta tabla.
               </p>
             </div>
             <button
@@ -525,7 +525,7 @@ export default async function AdminGameScorebookPage({
             </button>
           </div>
 
-          <div className="overflow-x-auto">
+          <div className="max-w-full overflow-x-auto">
             <div className="min-w-[860px]">
               <div className="grid grid-cols-[96px_repeat(9,minmax(48px,1fr))_56px_56px_56px] gap-2 text-center">
                 <div />
@@ -579,12 +579,14 @@ export default async function AdminGameScorebookPage({
                   className="rounded-lg border border-gold/20 bg-gold/10 px-3 py-2 text-center text-lg font-semibold text-gold"
                 />
                 {innings.slice(0, 9).map((inning) => (
-                  <div
+                  <input
                     key={`comu-${inning}`}
-                    className="flex items-center justify-center rounded-lg border border-gold/10 bg-gold/5 px-2 py-2 text-2xl font-semibold text-gold"
-                  >
-                    {comuRunsByInning.get(inning) ?? 0}
-                  </div>
+                    name={`comuRuns_${inning}`}
+                    type="number"
+                    min={0}
+                    defaultValue={comuRunsByInning.get(inning) ?? 0}
+                    className="rounded-lg border border-gold/20 bg-gold/10 px-2 py-2 text-center text-lg font-semibold text-gold"
+                  />
                 ))}
                 <div className="flex items-center justify-center text-2xl font-semibold text-gold">
                   {snapshot.comuRuns}
@@ -648,7 +650,7 @@ export default async function AdminGameScorebookPage({
 
       {isSupabaseConfigured() && game.squadId === "a1" ? (
         <div className={`grid gap-6 ${activeTab === "planilla" ? "2xl:grid-cols-[minmax(0,1fr)_340px]" : "xl:grid-cols-[minmax(0,1.3fr)_360px]"}`}>
-          <div className="space-y-6">
+          <div className="min-w-0 space-y-6">
             {activeTab === "resumen" ? (
               <section className="panel p-6">
                 <div className="mb-5">
@@ -703,7 +705,7 @@ export default async function AdminGameScorebookPage({
                 </div>
 
                 {lineup.length ? (
-                  <div className="-mx-2 overflow-x-auto px-2 pb-2">
+                  <div className="max-w-full overflow-x-auto pb-2">
                     <p className="mb-4 text-xs uppercase tracking-[0.18em] text-white/45">
                       Desliza horizontalmente para ver innings y totales.
                     </p>
@@ -920,7 +922,7 @@ export default async function AdminGameScorebookPage({
             </section>
           </div>
 
-          <aside className="space-y-6">
+          <aside className="min-w-0 space-y-6">
             <section className="panel p-6">
               <div className="mb-5">
                 <h2 className="font-[var(--font-display)] text-2xl uppercase tracking-[0.05em] text-white">

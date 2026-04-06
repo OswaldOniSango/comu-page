@@ -35,8 +35,8 @@ export function AdminSidebar({ locale, labels }: Props) {
             Admin
           </p>
         </div>
-        <div className="-mx-1 mt-4 overflow-x-auto pb-1">
-          <div className="flex min-w-max gap-2 px-1">
+        <div className="mt-4">
+          <div className="flex flex-wrap gap-2">
             {items.map((item) => (
               <Link
                 key={item.href}

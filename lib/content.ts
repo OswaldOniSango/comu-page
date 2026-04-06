@@ -14,7 +14,8 @@ import {
   buildGameScoringSnapshot,
   deriveGameBattingBoxScore,
   deriveGameHitTotal,
-  deriveRunsByInning
+  deriveRunsByInning,
+  mapStoredRunsByInning
 } from "@/lib/scorebook";
 import { createAdminClient, isSupabaseConfigured } from "@/lib/supabase";
 import type {
@@ -172,6 +173,7 @@ type GameScoreboardRow = {
   game_id: string;
   comu_abbreviation: string;
   opponent_abbreviation: string;
+  comu_runs_by_inning: Record<string, number> | null;
   comu_errors: number;
   opponent_hits: number;
   opponent_errors: number;
@@ -497,6 +499,7 @@ function mapScoreboard(row: GameScoreboardRow | null | undefined, gameId: string
     gameId,
     comuAbbreviation: row?.comu_abbreviation || "COMU",
     opponentAbbreviation: row?.opponent_abbreviation || opponent.slice(0, 3).toUpperCase(),
+    comuRunsByInning: Object.fromEntries(mapStoredRunsByInning(row?.comu_runs_by_inning)),
     comuErrors: Number(row?.comu_errors ?? 0),
     opponentHits: Number(row?.opponent_hits ?? 0),
     opponentErrors: Number(row?.opponent_errors ?? 0)
@@ -870,13 +873,15 @@ export async function getAdminGameScorebookPayload(gameId: string) {
           .filter((player): player is Player => Boolean(player))
       : roster;
   const gameBattingLines = deriveGameBattingBoxScore(events);
-  const comuRunsByInning = deriveRunsByInning(events);
-  const comuHitTotal = deriveGameHitTotal(events);
   const scoreboard = mapScoreboard(
     scoreboardResult.data as GameScoreboardRow | null | undefined,
     game.id,
     game.opponent
   );
+  const comuRunsByInning = mapStoredRunsByInning(scoreboard.comuRunsByInning).size
+    ? mapStoredRunsByInning(scoreboard.comuRunsByInning)
+    : deriveRunsByInning(events);
+  const comuHitTotal = deriveGameHitTotal(events);
 
   return {
     game,
