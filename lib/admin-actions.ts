@@ -11,7 +11,8 @@ import {
   deriveEventFamily,
   derivePlayerBattingStats,
   getComuRuns,
-  getOpponentRuns
+  getOpponentRuns,
+  sumStoredRunsByInning
 } from "@/lib/scorebook";
 import { requireAdminSession } from "@/lib/session";
 import { createAdminClient, isSupabaseConfigured } from "@/lib/supabase";
@@ -224,6 +225,10 @@ type FinalGameRow = {
   away_score: number | null;
 };
 
+type GameScoreboardRow = {
+  comu_runs_by_inning: Record<string, number> | null;
+};
+
 function parseBaseDestination(value: FormDataEntryValue | null, fallback: BaseDestination) {
   const raw = String(value || fallback);
   return raw === "1" || raw === "2" || raw === "3" || raw === "H" || raw === "O" ? raw : fallback;
@@ -315,7 +320,7 @@ async function recomputeScorebookDerivedState(
     squadId: string;
   }
 ) {
-  const [seasonEventsResult, gameEventsResult, opponentLinesResult, gameResult, teamStatsResult, playerStatsResult, finalGamesResult] =
+  const [seasonEventsResult, gameEventsResult, opponentLinesResult, gameResult, teamStatsResult, playerStatsResult, finalGamesResult, scoreboardResult] =
     await Promise.all([
       client
         .from("game_batting_events")
@@ -354,7 +359,8 @@ async function recomputeScorebookDerivedState(
         .select("id, is_home, home_score, away_score")
         .eq("season_id", seasonId)
         .eq("squad_id", squadId)
-        .eq("status", "final")
+        .eq("status", "final"),
+      client.from("game_scoreboards").select("comu_runs_by_inning").eq("game_id", gameId).maybeSingle()
     ]);
 
   const seasonEvents = (seasonEventsResult.data ?? []) as ScorebookEventRow[];
@@ -364,8 +370,9 @@ async function recomputeScorebookDerivedState(
   const existingTeamStats = teamStatsResult.data as TeamStatsRow | null;
   const existingPlayerStats = (playerStatsResult.data ?? []) as PlayerSeasonStatsRow[];
   const finalGames = (finalGamesResult.data ?? []) as FinalGameRow[];
+  const scoreboard = scoreboardResult.data as GameScoreboardRow | null;
 
-  const comuRuns = getComuRuns(
+  const derivedComuRuns = getComuRuns(
     gameEvents.map((event) => ({
       id: event.id,
       gameId: event.game_id,
@@ -389,6 +396,10 @@ async function recomputeScorebookDerivedState(
       updatedAt: event.updated_at
     }))
   );
+  const comuRuns =
+    scoreboard?.comu_runs_by_inning && Object.keys(scoreboard.comu_runs_by_inning).length
+      ? sumStoredRunsByInning(scoreboard.comu_runs_by_inning)
+      : derivedComuRuns;
   const opponentRuns = getOpponentRuns(
     opponentLines.map((line, index) => ({
       gameId,
@@ -785,11 +796,21 @@ export async function saveOpponentLinescoreAction(formData: FormData) {
   const seasonId = String(formData.get("seasonId") || "season-2026");
   const squadId = String(formData.get("squadId") || "a1");
 
+  const comuRunsByInning = Object.fromEntries(
+    Array.from(formData.keys())
+      .filter((key) => key.startsWith("comuRuns_"))
+      .map((key) => Number(key.replace("comuRuns_", "")))
+      .filter((inning) => !Number.isNaN(inning))
+      .sort((a, b) => a - b)
+      .map((inning) => [String(inning), Number(formData.get(`comuRuns_${inning}`) || 0)])
+  );
+
   await client.from("game_scoreboards").upsert(
     {
       game_id: gameId,
       comu_abbreviation: String(formData.get("comuAbbreviation") || "COMU"),
       opponent_abbreviation: String(formData.get("opponentAbbreviation") || "RIV"),
+      comu_runs_by_inning: comuRunsByInning,
       comu_errors: Number(formData.get("comuErrors") || 0),
       opponent_hits: Number(formData.get("opponentHits") || 0),
       opponent_errors: Number(formData.get("opponentErrors") || 0)

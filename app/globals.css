@@ -10,11 +10,13 @@
 
 html {
   scroll-behavior: smooth;
+  overflow-x: clip;
 }
 
 body {
   @apply bg-ink text-smoke antialiased;
   font-family: var(--font-body);
+  overflow-x: clip;
   background-image:
     radial-gradient(circle at top left, rgba(245, 196, 0, 0.18), transparent 24rem),
     radial-gradient(circle at bottom right, rgba(245, 196, 0, 0.1), transparent 18rem),
@@ -47,7 +49,7 @@ a {
 }
 
 .page-shell {
-  @apply mx-auto w-full max-w-7xl px-4 pb-16 pt-6 sm:px-6 lg:px-8;
+  @apply mx-auto w-full max-w-7xl min-w-0 px-4 pb-16 pt-6 sm:px-6 lg:px-8;
 }
 
 .admin-grid {
