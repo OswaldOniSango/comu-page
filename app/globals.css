@@ -51,5 +51,5 @@ a {
 }
 
 .admin-grid {
-  @apply grid gap-6 lg:grid-cols-[260px_minmax(0,1fr)];
+  @apply grid gap-4 lg:gap-6 lg:grid-cols-[260px_minmax(0,1fr)];
 }
