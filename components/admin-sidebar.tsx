@@ -12,6 +12,7 @@ type Props = {
     galleries: string;
     stats: string;
     seasons?: string;
+    categories?: string;
     users?: string;
     settings: string;
     controlRoom?: string;
@@ -28,6 +29,7 @@ export function AdminSidebar({ locale, labels }: Props) {
     { href: `/${locale}/admin/galleries`, label: labels.galleries },
     { href: `/${locale}/admin/stats`, label: labels.stats },
     ...(labels.seasons ? [{ href: `/${locale}/admin/seasons`, label: labels.seasons }] : []),
+    ...(labels.categories ? [{ href: `/${locale}/admin/categories`, label: labels.categories }] : []),
     ...(labels.users ? [{ href: `/${locale}/admin/users`, label: labels.users }] : []),
     { href: `/${locale}/admin/settings`, label: labels.settings }
   ];

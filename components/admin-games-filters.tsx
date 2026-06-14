@@ -3,14 +3,14 @@
 import { useRouter } from "next/navigation";
 import { startTransition } from "react";
 
-import type { Season, Squad, SquadId } from "@/lib/types";
+import type { Season, Squad } from "@/lib/types";
 
 type Props = {
   basePath: string;
   seasons: Season[];
   squads: Squad[];
   selectedSeasonId: string;
-  selectedSquadId: SquadId;
+  selectedSquadId: string;
   seasonLabel: string;
   squadLabel: string;
 };
@@ -30,7 +30,7 @@ export function AdminGamesFilters({
     .filter((squad) => squad.isActive)
     .sort((a, b) => a.sortOrder - b.sortOrder);
 
-  function navigate(nextSeasonId: string, nextSquadId: SquadId) {
+  function navigate(nextSeasonId: string, nextSquadId: string) {
     const params = new URLSearchParams({
       season: nextSeasonId,
       squad: nextSquadId
@@ -66,7 +66,7 @@ export function AdminGamesFilters({
         </span>
         <select
           value={selectedSquadId}
-          onChange={(event) => navigate(selectedSeasonId, event.target.value as SquadId)}
+          onChange={(event) => navigate(selectedSeasonId, event.target.value)}
           className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white outline-none transition focus:border-gold"
         >
           {activeSquads.map((squad) => (

@@ -251,7 +251,7 @@ function toLocaleContent<T extends TranslationRow>(
 }
 
 function toSquadId(input: string | null | undefined): SquadId {
-  return input === "a3" ? "a3" : "a1";
+  return input?.trim() || seedSquads[0]?.id || "a1";
 }
 
 function mapSiteSettings(row: Record<string, unknown> | null | undefined): SiteSettings {
@@ -289,7 +289,7 @@ function mapSquads(rows: SquadRow[] | null | undefined): Squad[] {
 
   return rows.map((row) => ({
     id: toSquadId(row.id),
-    code: row.code === "A3" ? "A3" : "A1",
+    code: String(row.code || row.id).toUpperCase(),
     name: {
       es: row.name_es || row.code,
       en: row.name_en || row.name_es || row.code
@@ -350,7 +350,7 @@ function mapPlayerStats(row?: PlayerStatsRow, assignment?: PlayerAssignment): Pl
 function buildLegacyAssignment(row: PlayerRow): PlayerAssignment {
   return {
     seasonId: row.player_season_stats?.[0]?.season_id || seedTeamStats.seasonId,
-    squadId: "a1",
+    squadId: seedSquads[0]?.id || "a1",
     jerseyNumber: Number(row.jersey_number || 0),
     position: row.position || "UTIL",
     featured: Boolean(row.featured),

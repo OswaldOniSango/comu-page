@@ -1,5 +1,5 @@
 export type Locale = "es" | "en";
-export type SquadId = "a1" | "a3";
+export type SquadId = string;
 
 export type PublishStatus = "draft" | "published";
 export type PlayerRole = "hitter" | "pitcher" | "two_way";
@@ -132,7 +132,7 @@ export type AdminUser = {
 
 export type Squad = {
   id: SquadId;
-  code: "A1" | "A3";
+  code: string;
   name: LocaleContent;
   isDefault: boolean;
   isActive: boolean;
