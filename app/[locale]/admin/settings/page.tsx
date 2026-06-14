@@ -63,7 +63,7 @@ export default async function AdminSettingsPage({
         <form action={saveSiteSettingsAction} className="panel p-6">
           <input type="hidden" name="locale" value={locale} />
           <h1 className="font-[var(--font-display)] text-5xl uppercase tracking-[0.08em] text-white">
-            Site settings
+            {dictionary.admin.settingsTitle}
           </h1>
           <div className="mt-6 grid gap-4 xl:grid-cols-2">
             <input name="teamName" defaultValue={data.settings.teamName} placeholder="Team name" className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white" />
@@ -87,14 +87,14 @@ export default async function AdminSettingsPage({
             <input name="x" defaultValue={data.settings.socialLinks.x} placeholder="X URL" className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white xl:col-span-2" />
           </div>
           <button type="submit" className="mt-6 rounded-full bg-gold px-5 py-3 text-sm font-semibold uppercase tracking-[0.24em] text-ink">
-            Save settings
+            {dictionary.admin.save}
           </button>
         </form>
 
         <section className="panel p-6">
-          <p className="eyebrow">Security</p>
+          <p className="eyebrow">{dictionary.admin.security}</p>
           <h2 className="mt-4 font-[var(--font-display)] text-3xl uppercase tracking-[0.08em] text-white">
-            Your account
+            {dictionary.admin.yourAccount}
           </h2>
           <div className="mt-5 rounded-2xl border border-white/10 bg-white/5 px-4 py-4 text-sm text-white/75">
             <p>{session.email}</p>
@@ -105,7 +105,7 @@ export default async function AdminSettingsPage({
             <input type="hidden" name="locale" value={locale} />
             <input type="hidden" name="redirectTo" value={redirectTo} />
             <label className="grid gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/55">
-              New password
+                {dictionary.admin.newPassword}
               <input
                 name="password"
                 type="password"
@@ -114,7 +114,7 @@ export default async function AdminSettingsPage({
               />
             </label>
             <label className="grid gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/55">
-              Confirm password
+                {dictionary.admin.confirmPassword}
               <input
                 name="confirmPassword"
                 type="password"
@@ -126,7 +126,7 @@ export default async function AdminSettingsPage({
               type="submit"
               className="rounded-full border border-gold/30 px-5 py-3 text-sm font-semibold uppercase tracking-[0.2em] text-gold"
             >
-              Change password
+              {dictionary.admin.changePassword}
             </button>
           </form>
         </section>

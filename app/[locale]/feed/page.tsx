@@ -19,7 +19,7 @@ export default async function FeedPage({
 
   return (
     <main className="page-shell space-y-10">
-      <SectionHeading eyebrow="Feed" title={dictionary.feed.title} body={dictionary.feed.subtitle} />
+      <SectionHeading eyebrow={dictionary.nav.feed} title={dictionary.feed.title} body={dictionary.feed.subtitle} />
       <FeedBoard locale={locale} posts={sortPosts(data.posts)} />
     </main>
   );

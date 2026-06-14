@@ -207,10 +207,10 @@ export default async function AdminPlayersPage({
         <div className="flex items-start justify-between gap-4">
           <div>
             <h1 className="font-[var(--font-display)] text-5xl uppercase tracking-[0.08em] text-white">
-              Roster manager
+              {dictionary.admin.playersTitle}
             </h1>
             <p className="mt-3 text-sm text-white/65">
-              Compact list with direct edit and delete actions.
+              {dictionary.admin.playersSubtitle}
             </p>
           </div>
           <SquadSwitch
@@ -220,10 +220,10 @@ export default async function AdminPlayersPage({
           />
           <Link
             href={`${basePath}?squad=${selectedSquad.id}&create=1`}
-            className="rounded-full bg-gold px-5 py-3 text-xs font-semibold uppercase tracking-[0.24em] text-ink"
-          >
-            New player
-          </Link>
+                className="rounded-full bg-gold px-5 py-3 text-xs font-semibold uppercase tracking-[0.24em] text-ink"
+              >
+                {dictionary.admin.newPlayer}
+              </Link>
         </div>
       </div>
 
@@ -244,7 +244,7 @@ export default async function AdminPlayersPage({
                   href={`${basePath}?squad=${selectedSquad.id}&edit=${player.id}`}
                   className="rounded-full border border-gold/30 px-4 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-gold"
                 >
-                  Edit
+                  {dictionary.admin.edit}
                 </Link>
                 <form action={deletePlayerAction}>
                   <input type="hidden" name="locale" value={locale} />
@@ -254,7 +254,7 @@ export default async function AdminPlayersPage({
                     type="submit"
                     className="rounded-full border border-red-400/30 px-4 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-red-200"
                   >
-                    Delete
+                    {dictionary.admin.delete}
                   </button>
                 </form>
               </div>
@@ -265,15 +265,20 @@ export default async function AdminPlayersPage({
 
       {(editingPlayer || isCreating) && (
         <AdminModal
-          title={editingPlayer ? `Edit ${editingPlayer.firstName} ${editingPlayer.lastName}` : "New player"}
+          title={
+            editingPlayer
+              ? `${dictionary.admin.edit} ${editingPlayer.firstName} ${editingPlayer.lastName}`
+              : dictionary.admin.newPlayer
+          }
           closeHref={listPath}
+          closeLabel={dictionary.admin.close}
         >
           <PlayerForm
             locale={locale}
             redirectTo={listPath}
             seasonId={data.activeSeason.id}
             squadId={selectedSquad.id}
-            submitLabel={editingPlayer ? "Update player" : "Create player"}
+            submitLabel={editingPlayer ? dictionary.admin.updatePlayer : dictionary.admin.createPlayer}
             player={editingPlayer}
           />
         </AdminModal>

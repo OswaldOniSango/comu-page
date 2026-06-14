@@ -48,7 +48,7 @@ export default async function LocaleLayout({
 
   return (
     <>
-      <SiteHeader locale={locale} nav={dictionary.nav} />
+      <SiteHeader locale={locale} nav={dictionary.nav} common={dictionary.common} />
       {children}
       <SiteFooter locale={locale} teamName={settings.teamName} />
     </>

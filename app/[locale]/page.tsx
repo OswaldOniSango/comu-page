@@ -75,9 +75,9 @@ export default async function HomePage({
               selectedSquadId={selectedSquad.id}
             />
             <div className="grid gap-4 text-left sm:grid-cols-3">
-              <StatCard label="Record" value={`${teamStats.wins}-${teamStats.losses}`} accent />
-              <StatCard label="Runs" value={`${teamStats.runsScored}`} />
-              <StatCard label="Streak" value={teamStats.streak} />
+              <StatCard label={dictionary.common.record} value={`${teamStats.wins}-${teamStats.losses}`} accent />
+              <StatCard label={dictionary.common.runs} value={`${teamStats.runsScored}`} />
+              <StatCard label={dictionary.common.streak} value={teamStats.streak} />
             </div>
           </div>
           <div className="panel-dark min-w-0 overflow-hidden p-5">
@@ -213,7 +213,9 @@ export default async function HomePage({
               <p className="eyebrow">{dictionary.home.readFeed}</p>
             </div>
             <p className="mt-4 text-sm leading-7 text-white/68">
-              Editorial space for game summaries, club notices, roster news and image-driven updates.
+              {locale === "es"
+                ? "Espacio editorial para resumenes de juego, avisos del club, novedades del plantel y actualizaciones visuales."
+                : "Editorial space for game summaries, club notices, roster news and image-driven updates."}
             </p>
             <Link
               href={`/${locale}/feed`}
@@ -229,7 +231,11 @@ export default async function HomePage({
         <SectionHeading
           eyebrow={dictionary.home.photoMoments}
           title={dictionary.home.photoMoments}
-          body="Simple but striking photo galleries for games, training and team identity."
+          body={
+            locale === "es"
+              ? "Galerias simples pero potentes para juegos, entrenamientos e identidad de equipo."
+              : "Simple but striking photo galleries for games, training and team identity."
+          }
         />
         <div className="grid gap-6 lg:grid-cols-2">
           {featuredGalleries.map((gallery) => (

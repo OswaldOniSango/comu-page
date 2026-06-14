@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import { localizeText } from "@/lib/content";
-import { formatDate } from "@/lib/i18n";
+import { formatDate, getDictionary } from "@/lib/i18n";
 import type { Game, Locale } from "@/lib/types";
 
 type Props = {
@@ -10,6 +10,7 @@ type Props = {
 };
 
 export function GameCard({ locale, game }: Props) {
+  const dictionary = getDictionary(locale);
   const isFinal = game.status === "final";
   const score = isFinal
     ? game.isHome
@@ -25,7 +26,7 @@ export function GameCard({ locale, game }: Props) {
       <div>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-xs uppercase tracking-[0.3em] text-white/45">
-            {game.squadId.toUpperCase()} • {game.isHome ? "HOME" : "AWAY"}
+            {game.squadId.toUpperCase()} • {game.isHome ? dictionary.common.home : dictionary.common.away}
           </p>
           <p className="rounded-full border border-white/10 px-3 py-1 text-[10px] uppercase tracking-[0.25em] text-gold">
             {game.status}
@@ -44,7 +45,7 @@ export function GameCard({ locale, game }: Props) {
           </p>
         </div>
         <span className="text-xs font-semibold uppercase tracking-[0.25em] text-white/60 group-hover:text-gold">
-          View game
+          {dictionary.common.viewGame}
         </span>
       </div>
     </Link>

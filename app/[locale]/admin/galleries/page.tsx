@@ -120,15 +120,15 @@ export default async function AdminGalleriesPage({
         <div className="flex items-start justify-between gap-4">
           <div>
             <h1 className="font-[var(--font-display)] text-5xl uppercase tracking-[0.08em] text-white">
-              Galleries
+              {dictionary.admin.galleriesTitle}
             </h1>
-            <p className="mt-3 text-sm text-white/65">List view with quick actions and modal editing.</p>
+            <p className="mt-3 text-sm text-white/65">{dictionary.admin.galleriesSubtitle}</p>
           </div>
           <Link
             href={`${basePath}?create=1`}
             className="rounded-full bg-gold px-5 py-3 text-xs font-semibold uppercase tracking-[0.24em] text-ink"
           >
-            New gallery
+            {dictionary.admin.newGallery}
           </Link>
         </div>
       </div>
@@ -150,7 +150,7 @@ export default async function AdminGalleriesPage({
                   href={`${basePath}?edit=${gallery.id}`}
                   className="rounded-full border border-gold/30 px-4 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-gold"
                 >
-                  Edit
+                  {dictionary.admin.edit}
                 </Link>
                 <form action={deleteGalleryAction}>
                   <input type="hidden" name="locale" value={locale} />
@@ -160,7 +160,7 @@ export default async function AdminGalleriesPage({
                     type="submit"
                     className="rounded-full border border-red-400/30 px-4 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-red-200"
                   >
-                    Delete
+                    {dictionary.admin.delete}
                   </button>
                 </form>
               </div>
@@ -171,13 +171,20 @@ export default async function AdminGalleriesPage({
 
       {(editingGallery || isCreating) && (
         <AdminModal
-          title={editingGallery ? `Edit ${editingGallery.title.es}` : "New gallery"}
+          title={
+            editingGallery
+              ? `${dictionary.admin.edit} ${editingGallery.title.es}`
+              : dictionary.admin.newGallery
+          }
           closeHref={basePath}
+          closeLabel={dictionary.admin.close}
         >
           <GalleryForm
             locale={locale}
             redirectTo={basePath}
-            submitLabel={editingGallery ? "Update gallery" : "Create gallery"}
+            submitLabel={
+              editingGallery ? dictionary.admin.updateGallery : dictionary.admin.createGallery
+            }
             gallery={editingGallery}
           />
         </AdminModal>

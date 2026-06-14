@@ -14,9 +14,12 @@ type Props = {
     about: string;
     admin: string;
   };
+  common?: {
+    club?: string;
+  };
 };
 
-export function SiteHeader({ locale, nav }: Props) {
+export function SiteHeader({ locale, nav, common }: Props) {
   const items = [
     { href: `/${locale}`, label: nav.home },
     { href: `/${locale}/roster`, label: nav.roster },
@@ -39,7 +42,7 @@ export function SiteHeader({ locale, nav }: Props) {
                 Comunicaciones
               </p>
               <p className="truncate text-[10px] uppercase tracking-[0.24em] text-white/45 sm:text-xs sm:tracking-[0.3em]">
-                Baseball Club
+                {common?.club ?? "Baseball Club"}
               </p>
             </div>
           </Link>

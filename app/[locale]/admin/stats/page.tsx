@@ -190,7 +190,7 @@ export default async function AdminStatsPage({
         <div className="panel p-6">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <h2 className="font-[var(--font-display)] text-4xl uppercase tracking-[0.08em] text-white">
-              Team stats
+              {dictionary.admin.teamStats}
             </h2>
             <SquadSwitch
               basePath={basePath}
@@ -200,19 +200,19 @@ export default async function AdminStatsPage({
           </div>
           <div className="mt-6 grid gap-4 sm:grid-cols-2">
             <div className="rounded-2xl border border-white/10 p-4">
-              <p className="text-xs uppercase tracking-[0.25em] text-white/45">Wins</p>
+              <p className="text-xs uppercase tracking-[0.25em] text-white/45">{dictionary.admin.wins}</p>
               <p className="mt-2 font-[var(--font-display)] text-4xl text-white">{teamStats.wins}</p>
             </div>
             <div className="rounded-2xl border border-white/10 p-4">
-              <p className="text-xs uppercase tracking-[0.25em] text-white/45">Losses</p>
+              <p className="text-xs uppercase tracking-[0.25em] text-white/45">{dictionary.admin.losses}</p>
               <p className="mt-2 font-[var(--font-display)] text-4xl text-white">{teamStats.losses}</p>
             </div>
             <div className="rounded-2xl border border-white/10 p-4">
-              <p className="text-xs uppercase tracking-[0.25em] text-white/45">Runs scored</p>
+              <p className="text-xs uppercase tracking-[0.25em] text-white/45">{dictionary.admin.runsScored}</p>
               <p className="mt-2 font-[var(--font-display)] text-4xl text-white">{teamStats.runsScored}</p>
             </div>
             <div className="rounded-2xl border border-white/10 p-4">
-              <p className="text-xs uppercase tracking-[0.25em] text-white/45">Runs allowed</p>
+              <p className="text-xs uppercase tracking-[0.25em] text-white/45">{dictionary.admin.runsAllowed}</p>
               <p className="mt-2 font-[var(--font-display)] text-4xl text-white">{teamStats.runsAllowed}</p>
             </div>
           </div>
@@ -223,18 +223,18 @@ export default async function AdminStatsPage({
           <input type="hidden" name="seasonId" value={data.activeSeason.id} />
           <input type="hidden" name="squadId" value={selectedSquad.id} />
           <h2 className="font-[var(--font-display)] text-4xl uppercase tracking-[0.08em] text-white">
-            Update team line
+            {dictionary.admin.updateTeamLine}
           </h2>
           <div className="mt-6 grid gap-4 sm:grid-cols-2">
             <input name="wins" type="number" defaultValue={teamStats.wins} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white" />
             <input name="losses" type="number" defaultValue={teamStats.losses} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white" />
             <input name="runsScored" type="number" defaultValue={teamStats.runsScored} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white" />
             <input name="runsAllowed" type="number" defaultValue={teamStats.runsAllowed} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white" />
-            <input name="streak" defaultValue={teamStats.streak} placeholder="Streak" className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white" />
-            <input name="standing" defaultValue={teamStats.standing} placeholder="Standing" className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white" />
+            <input name="streak" defaultValue={teamStats.streak} placeholder={dictionary.admin.streakLabel} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white" />
+            <input name="standing" defaultValue={teamStats.standing} placeholder={dictionary.admin.standing} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white" />
           </div>
           <button type="submit" className="mt-6 rounded-full bg-gold px-5 py-3 text-sm font-semibold uppercase tracking-[0.24em] text-ink">
-            Save team stats
+            {dictionary.admin.saveTeamStats}
           </button>
         </form>
       </div>
@@ -243,10 +243,12 @@ export default async function AdminStatsPage({
         <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
           <div>
             <h2 className="font-[var(--font-display)] text-4xl uppercase tracking-[0.08em] text-white">
-              Player stats
+              {locale === "es" ? "Estadisticas de jugadores" : "Player stats"}
             </h2>
             <p className="mt-2 text-sm text-white/65">
-              Update batting and pitching numbers for every player from one place.
+              {locale === "es"
+                ? "Actualiza numeros ofensivos y de pitcheo de cada jugador desde una sola pantalla."
+                : "Update batting and pitching numbers for every player from one place."}
             </p>
           </div>
         </div>
@@ -269,7 +271,7 @@ export default async function AdminStatsPage({
                   href={`${basePath}?squad=${selectedSquad.id}&edit=${player.id}`}
                   className="rounded-full border border-gold/30 px-4 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-gold"
                 >
-                  Edit stats
+                  {dictionary.admin.editStats}
                 </Link>
               </div>
             </div>
