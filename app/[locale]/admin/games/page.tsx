@@ -3,9 +3,10 @@ import Link from "next/link";
 import { AdminModal } from "@/components/admin-modal";
 import { AdminShell } from "@/components/admin-shell";
 import { ImageUploadField } from "@/components/image-upload-field";
+import { SeasonSwitch } from "@/components/season-switch";
 import { SquadSwitch } from "@/components/squad-switch";
 import { deleteGameAction, saveGameAction } from "@/lib/admin-actions";
-import { getSiteData, resolveSelectedSquad, sortGames } from "@/lib/content";
+import { getSiteData, resolveSelectedSeason, resolveSelectedSquad, sortGames } from "@/lib/content";
 import { getDictionary, isLocale, toLocalDateTimeInputValue } from "@/lib/i18n";
 import { requireAdminSession } from "@/lib/session";
 import { isSupabaseConfigured } from "@/lib/supabase";
@@ -165,7 +166,7 @@ export default async function AdminGamesPage({
   searchParams
 }: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ edit?: string; create?: string; squad?: string }>;
+  searchParams: Promise<{ edit?: string; create?: string; squad?: string; season?: string }>;
 }) {
   const { locale } = await params;
   const query = await searchParams;
@@ -178,11 +179,16 @@ export default async function AdminGamesPage({
   const dictionary = getDictionary(locale);
   const data = await getSiteData();
   const selectedSquad = resolveSelectedSquad(query.squad, data.squads);
-  const games = sortGames(data.games.filter((game) => game.squadId === selectedSquad.id));
+  const selectedSeason = resolveSelectedSeason(query.season, data.seasons);
+  const games = sortGames(
+    data.games.filter(
+      (game) => game.squadId === selectedSquad.id && game.seasonId === selectedSeason.id
+    )
+  );
   const basePath = `/${locale}/admin/games`;
   const editingGame = query.edit ? games.find((game) => game.id === query.edit) : undefined;
   const isCreating = query.create === "1";
-  const listPath = `${basePath}?squad=${selectedSquad.id}`;
+  const listPath = `${basePath}?squad=${selectedSquad.id}&season=${selectedSeason.id}`;
 
   return (
     <AdminShell locale={locale} labels={dictionary.admin}>
@@ -195,13 +201,20 @@ export default async function AdminGamesPage({
             <p className="mt-3 text-sm text-white/65">{dictionary.admin.gamesSubtitle}</p>
           </div>
           <div className="flex w-full flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between lg:w-auto lg:justify-end">
+            <SeasonSwitch
+              basePath={basePath}
+              seasons={data.seasons}
+              selectedSeasonId={selectedSeason.id}
+              extraParams={{ squad: selectedSquad.id }}
+            />
             <SquadSwitch
               basePath={basePath}
               squads={data.squads}
               selectedSquadId={selectedSquad.id}
+              extraParams={{ season: selectedSeason.id }}
             />
             <Link
-              href={`${basePath}?squad=${selectedSquad.id}&create=1`}
+              href={`${basePath}?squad=${selectedSquad.id}&season=${selectedSeason.id}&create=1`}
               className="inline-flex w-full items-center justify-center rounded-full bg-gold px-5 py-3 text-xs font-semibold uppercase tracking-[0.24em] text-ink sm:w-auto"
             >
               {dictionary.admin.newGame}
@@ -232,7 +245,7 @@ export default async function AdminGamesPage({
                   </Link>
                 ) : null}
                 <Link
-                  href={`${basePath}?squad=${selectedSquad.id}&edit=${game.id}`}
+                  href={`${basePath}?squad=${selectedSquad.id}&season=${selectedSeason.id}&edit=${game.id}`}
                   className="inline-flex items-center justify-center rounded-full border border-gold/30 px-4 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-gold"
                 >
                   {dictionary.admin.edit}
@@ -263,7 +276,7 @@ export default async function AdminGamesPage({
           <GameForm
             locale={locale}
             redirectTo={listPath}
-            seasonId={data.activeSeason.id}
+            seasonId={selectedSeason.id}
             squadId={selectedSquad.id}
             submitLabel={editingGame ? dictionary.admin.updateGame : dictionary.admin.createGame}
             game={editingGame}

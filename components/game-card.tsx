@@ -20,7 +20,7 @@ export function GameCard({ locale, game }: Props) {
 
   return (
     <Link
-      href={`/${locale}/games/${game.slug}?squad=${game.squadId}`}
+      href={`/${locale}/games/${game.slug}?squad=${game.squadId}&season=${game.seasonId}`}
       className="panel group flex flex-col justify-between gap-6 p-6 hover:border-gold/30"
     >
       <div>

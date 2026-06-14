@@ -13,7 +13,7 @@ type Props = {
 export function PlayerCard({ locale, player }: Props) {
   return (
     <Link
-      href={`/${locale}/roster/${player.slug}?squad=${player.assignment.squadId}`}
+      href={`/${locale}/roster/${player.slug}?squad=${player.assignment.squadId}&season=${player.assignment.seasonId}`}
       className="group panel-dark overflow-hidden hover:-translate-y-1"
     >
       <div className="relative aspect-[4/5] overflow-hidden">

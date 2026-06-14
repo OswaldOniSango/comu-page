@@ -250,7 +250,7 @@ export default async function AdminGameScorebookPage({
             </p>
           </div>
           <Link
-            href={`/${locale}/admin/games?squad=${game.squadId}`}
+            href={`/${locale}/admin/games?squad=${game.squadId}&season=${game.seasonId}`}
             className="rounded-full border border-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-white/75 hover:border-gold hover:text-gold"
           >
             Volver a juegos

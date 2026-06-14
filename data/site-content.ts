@@ -34,7 +34,14 @@ export const siteSettings: SiteSettings = {
 };
 
 export const seasons: Season[] = [
-  { id: "season-2026", year: 2026, label: "2026", active: true }
+  {
+    id: "season-2026",
+    year: 2026,
+    label: "2026",
+    active: true,
+    startsAt: "2026-01-01",
+    endsAt: "2026-12-31"
+  }
 ];
 
 export const squads: Squad[] = [
