@@ -32,8 +32,8 @@ alter table if exists seasons
   drop constraint if exists seasons_year_key;
 
 create table if not exists squads (
-  id text primary key check (id in ('a1', 'a3')),
-  code text not null unique check (code in ('A1', 'A3')),
+  id text primary key,
+  code text not null unique,
   name_es text not null,
   name_en text not null,
   sort_order integer not null default 99,
@@ -46,14 +46,13 @@ insert into squads (id, code, name_es, name_en, sort_order, is_default, is_activ
 values
   ('a1', 'A1', 'Comunicaciones A1', 'Comunicaciones A1', 1, true, true),
   ('a3', 'A3', 'Comunicaciones A3', 'Comunicaciones A3', 2, false, true)
-on conflict (id) do update
-set
-  code = excluded.code,
-  name_es = excluded.name_es,
-  name_en = excluded.name_en,
-  sort_order = excluded.sort_order,
-  is_default = excluded.is_default,
-  is_active = excluded.is_active;
+on conflict (id) do nothing;
+
+alter table if exists squads
+  drop constraint if exists squads_id_check;
+
+alter table if exists squads
+  drop constraint if exists squads_code_check;
 
 create table if not exists admins (
   user_id uuid primary key,

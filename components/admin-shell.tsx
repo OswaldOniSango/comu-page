@@ -12,6 +12,7 @@ type Props = {
     galleries: string;
     stats: string;
     seasons?: string;
+    categories?: string;
     users?: string;
     settings: string;
     signOut?: string;

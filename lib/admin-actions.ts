@@ -43,6 +43,13 @@ function slugify(input: string) {
     .replace(/(^-|-$)+/g, "");
 }
 
+function normalizeSquadCode(input: FormDataEntryValue | null) {
+  return String(input || "")
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9-]+/g, "");
+}
+
 async function ensureAdmin(locale: Locale) {
   await requireAdminSession(locale);
 }
@@ -426,10 +433,10 @@ async function recomputeScorebookDerivedState(
         .eq("season_id", seasonId)
         .eq("squad_id", squadId),
       client
-        .from("games")
-        .select("id, is_home, home_score, away_score")
-        .eq("season_id", seasonId)
-        .eq("squad_id", squadId)
+      .from("games")
+      .select("id, is_home, home_score, away_score")
+      .eq("season_id", seasonId)
+      .eq("squad_id", squadId)
         .eq("status", "final"),
       client.from("game_scoreboards").select("comu_runs_by_inning").eq("game_id", gameId).maybeSingle()
     ]);
@@ -448,7 +455,7 @@ async function recomputeScorebookDerivedState(
       id: event.id,
       gameId: event.game_id,
       seasonId: event.season_id,
-      squadId: event.squad_id === "a3" ? "a3" : "a1",
+      squadId: event.squad_id,
       sequenceNo: event.sequence_no,
       inningNumber: event.inning_number,
       batterPlayerId: event.batter_player_id,
@@ -495,7 +502,7 @@ async function recomputeScorebookDerivedState(
       id: event.id,
       gameId: event.game_id,
       seasonId: event.season_id,
-      squadId: event.squad_id === "a3" ? "a3" : "a1",
+      squadId: event.squad_id,
       sequenceNo: event.sequence_no,
       inningNumber: event.inning_number,
       batterPlayerId: event.batter_player_id,
@@ -821,6 +828,78 @@ export async function saveSeasonAction(formData: FormData) {
   maybeRedirect(withNoticeParam(redirectTo, existingId ? "season-updated" : "season-created"));
 }
 
+export async function saveSquadAction(formData: FormData) {
+  const locale = (formData.get("locale") as Locale) || "es";
+  const redirectTo = getRedirectTo(formData);
+  await ensureAdmin(locale);
+
+  if (!isSupabaseConfigured()) {
+    await revalidateAll(locale);
+    return;
+  }
+
+  const client = createAdminClient();
+  if (!client) {
+    return;
+  }
+
+  const existingId = String(formData.get("id") || "").trim();
+  const code = normalizeSquadCode(formData.get("code"));
+  const nameEs = String(formData.get("nameEs") || "").trim();
+  const nameEn = String(formData.get("nameEn") || "").trim() || nameEs;
+  const sortOrder = Number(formData.get("sortOrder") || 99);
+  const isDefault = parseBoolean(formData.get("isDefault"));
+  const isActive = parseBoolean(formData.get("isActive"));
+
+  if (!code || !nameEs) {
+    maybeRedirect(withErrorParam(redirectTo, "invalid-category-input"));
+    return;
+  }
+
+  const id = existingId || `squad-${slugify(code)}`;
+
+  if (isDefault) {
+    await client.from("squads").update({ is_default: false }).neq("id", id);
+  }
+
+  const payload = {
+    id,
+    code,
+    name_es: nameEs,
+    name_en: nameEn,
+    sort_order: Number.isNaN(sortOrder) ? 99 : sortOrder,
+    is_default: isDefault,
+    is_active: isActive
+  };
+
+  const query = existingId
+    ? client.from("squads").update(payload).eq("id", existingId)
+    : client.from("squads").insert(payload);
+
+  const { error } = await query;
+  if (error) {
+    maybeRedirect(withErrorParam(redirectTo, "category-save-failed"));
+    return;
+  }
+
+  if (!isDefault) {
+    const { data: defaultRows } = await client.from("squads").select("id").eq("is_default", true).limit(1);
+    if (!defaultRows?.length) {
+      await client.from("squads").update({ is_default: true }).eq("id", id);
+    }
+  }
+
+  if (!isActive) {
+    const { data: activeRows } = await client.from("squads").select("id").eq("is_active", true).limit(1);
+    if (!activeRows?.length) {
+      await client.from("squads").update({ is_active: true }).eq("id", id);
+    }
+  }
+
+  await revalidateAll(locale);
+  maybeRedirect(withNoticeParam(redirectTo, existingId ? "category-updated" : "category-created"));
+}
+
 export async function deleteSeasonAction(formData: FormData) {
   const locale = (formData.get("locale") as Locale) || "es";
   const redirectTo = getRedirectTo(formData);
@@ -886,6 +965,76 @@ export async function deleteSeasonAction(formData: FormData) {
 
   await revalidateAll(locale);
   maybeRedirect(withNoticeParam(redirectTo, "season-deleted"));
+}
+
+export async function deleteSquadAction(formData: FormData) {
+  const locale = (formData.get("locale") as Locale) || "es";
+  const redirectTo = getRedirectTo(formData);
+  await ensureAdmin(locale);
+
+  if (!isSupabaseConfigured()) {
+    await revalidateAll(locale);
+    return;
+  }
+
+  const client = createAdminClient();
+  if (!client) {
+    return;
+  }
+
+  const id = String(formData.get("id") || "").trim();
+  if (!id) {
+    maybeRedirect(withErrorParam(redirectTo, "category-not-found"));
+    return;
+  }
+
+  const { data: squads } = await client.from("squads").select("id, is_default, is_active").order("sort_order");
+  const rows = (squads ?? []) as Array<{ id: string; is_default: boolean; is_active: boolean }>;
+  const target = rows.find((squad) => squad.id === id);
+
+  if (!target) {
+    maybeRedirect(withErrorParam(redirectTo, "category-not-found"));
+    return;
+  }
+
+  if (rows.length <= 1) {
+    maybeRedirect(withErrorParam(redirectTo, "category-delete-last"));
+    return;
+  }
+
+  const dependencyChecks = await Promise.all([
+    client.from("player_assignments").select("player_id", { head: true, count: "exact" }).eq("squad_id", id),
+    client.from("player_season_stats").select("player_id", { head: true, count: "exact" }).eq("squad_id", id),
+    client.from("team_season_stats").select("season_id", { head: true, count: "exact" }).eq("squad_id", id),
+    client.from("games").select("id", { head: true, count: "exact" }).eq("squad_id", id),
+    client.from("game_batting_events").select("id", { head: true, count: "exact" }).eq("squad_id", id)
+  ]);
+
+  if (dependencyChecks.some((result) => (result.count ?? 0) > 0)) {
+    maybeRedirect(withErrorParam(redirectTo, "category-delete-blocked"));
+    return;
+  }
+
+  const { error } = await client.from("squads").delete().eq("id", id);
+  if (error) {
+    maybeRedirect(withErrorParam(redirectTo, "category-delete-failed"));
+    return;
+  }
+
+  const fallback = rows.find((squad) => squad.id !== id);
+  if (target.is_default && fallback) {
+    await client.from("squads").update({ is_default: true }).eq("id", fallback.id);
+  }
+
+  if (target.is_active) {
+    const { data: activeRows } = await client.from("squads").select("id").eq("is_active", true).limit(1);
+    if (!activeRows?.length && fallback) {
+      await client.from("squads").update({ is_active: true }).eq("id", fallback.id);
+    }
+  }
+
+  await revalidateAll(locale);
+  maybeRedirect(withNoticeParam(redirectTo, "category-deleted"));
 }
 
 export async function saveGameBattingEventAction(formData: FormData) {
