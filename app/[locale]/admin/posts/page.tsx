@@ -163,16 +163,16 @@ export default async function AdminPostsPage({
   return (
     <AdminShell locale={locale} labels={dictionary.admin}>
       <div className="panel p-6">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h1 className="font-[var(--font-display)] text-5xl uppercase tracking-[0.08em] text-white">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <h1 className="break-words font-[var(--font-display)] text-4xl uppercase tracking-[0.08em] text-white sm:text-5xl">
               {dictionary.admin.postsTitle}
             </h1>
             <p className="mt-3 text-sm text-white/65">{dictionary.admin.postsSubtitle}</p>
           </div>
           <Link
             href={`${basePath}?create=1`}
-            className="rounded-full bg-gold px-5 py-3 text-xs font-semibold uppercase tracking-[0.24em] text-ink"
+            className="inline-flex w-full items-center justify-center rounded-full bg-gold px-5 py-3 text-xs font-semibold uppercase tracking-[0.24em] text-ink sm:w-auto"
           >
             {dictionary.admin.newPost}
           </Link>
@@ -182,17 +182,20 @@ export default async function AdminPostsPage({
       <div className="panel overflow-hidden">
         <div className="divide-y divide-white/10">
           {posts.map((post) => (
-            <div key={post.id} className="flex items-center justify-between gap-4 px-5 py-4">
-              <div>
+            <div
+              key={post.id}
+              className="flex flex-col gap-4 px-5 py-4 sm:flex-row sm:items-center sm:justify-between"
+            >
+              <div className="min-w-0">
                 <p className="text-xs uppercase tracking-[0.25em] text-gold">{post.kind}</p>
-                <p className="mt-2 font-[var(--font-display)] text-3xl uppercase tracking-[0.08em] text-white">
+                <p className="mt-2 break-words font-[var(--font-display)] text-2xl uppercase tracking-[0.08em] text-white sm:text-3xl">
                   {post.title.es}
                 </p>
               </div>
-              <div className="flex gap-3">
+              <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
                 <Link
                   href={`${basePath}?edit=${post.id}`}
-                  className="rounded-full border border-gold/30 px-4 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-gold"
+                  className="inline-flex w-full items-center justify-center rounded-full border border-gold/30 px-4 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-gold sm:w-auto"
                 >
                   {dictionary.admin.edit}
                 </Link>
@@ -202,7 +205,7 @@ export default async function AdminPostsPage({
                   <input type="hidden" name="id" value={post.id} />
                   <button
                     type="submit"
-                    className="rounded-full border border-red-400/30 px-4 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-red-200"
+                    className="inline-flex w-full items-center justify-center rounded-full border border-red-400/30 px-4 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-red-200 sm:w-auto"
                   >
                     {dictionary.admin.delete}
                   </button>
