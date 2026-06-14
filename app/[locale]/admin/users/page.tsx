@@ -106,7 +106,7 @@ function UserFormFields({
 
       <div className="grid gap-4 md:grid-cols-2">
         <label className="grid gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/55">
-          Email
+          {locale === "es" ? "Email" : "Email"}
           <input
             name="email"
             type="email"
@@ -116,7 +116,7 @@ function UserFormFields({
           />
         </label>
         <label className="grid gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/55">
-          Role
+          {locale === "es" ? "Rol" : "Role"}
           <select
             name="role"
             defaultValue={user?.role ?? "admin"}
@@ -134,7 +134,13 @@ function UserFormFields({
 
       <div className="grid gap-4 md:grid-cols-2">
         <label className="grid gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/55">
-          {mode === "create" ? "Temporary password" : "New password"}
+          {mode === "create"
+            ? locale === "es"
+              ? "Contrasena temporal"
+              : "Temporary password"
+            : locale === "es"
+              ? "Nueva contrasena"
+              : "New password"}
           <input
             name="password"
             type="password"
@@ -151,7 +157,7 @@ function UserFormFields({
             defaultChecked={user ? user.isActive : true}
             className="h-4 w-4"
           />
-          Active user
+          {locale === "es" ? "Usuario activo" : "Active user"}
         </label>
       </div>
     </>
@@ -198,10 +204,10 @@ export default async function AdminUsersPage({
           <div>
             <p className="eyebrow">Superadmin</p>
             <h1 className="mt-4 font-[var(--font-display)] text-5xl uppercase tracking-[0.08em] text-white">
-              User management
+              {dictionary.admin.usersTitle}
             </h1>
             <p className="mt-3 max-w-2xl text-sm text-white/65">
-              Create, edit, deactivate or remove admin accounts from a dedicated page.
+              {dictionary.admin.usersSubtitle}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
@@ -212,7 +218,7 @@ export default async function AdminUsersPage({
               href={`${redirectTo}?create=true`}
               className="rounded-full bg-gold px-5 py-3 text-sm font-semibold uppercase tracking-[0.2em] text-ink"
             >
-              New user
+              {dictionary.admin.newUser}
             </Link>
           </div>
         </div>
@@ -231,7 +237,7 @@ export default async function AdminUsersPage({
                       {user.role}
                     </span>
                     <span className="rounded-full border border-white/10 px-3 py-1 text-white/60">
-                      {user.isActive ? "active" : "inactive"}
+                      {user.isActive ? dictionary.admin.active : dictionary.admin.inactive}
                     </span>
                   </div>
                 </div>
@@ -241,7 +247,7 @@ export default async function AdminUsersPage({
                     href={`${redirectTo}?edit=${user.userId}`}
                     className="rounded-full border border-gold/30 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-gold"
                   >
-                    Edit
+                    {dictionary.admin.edit}
                   </Link>
                   <form action={deleteAdminUserAction}>
                     <input type="hidden" name="locale" value={locale} />
@@ -251,7 +257,7 @@ export default async function AdminUsersPage({
                       type="submit"
                       className="rounded-full border border-red-400/30 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-red-200"
                     >
-                      Delete
+                      {dictionary.admin.delete}
                     </button>
                   </form>
                 </div>
@@ -262,7 +268,7 @@ export default async function AdminUsersPage({
       </section>
 
       {query.create === "true" ? (
-        <AdminModal title="New user" closeHref={redirectTo}>
+        <AdminModal title={dictionary.admin.newUser} closeHref={redirectTo} closeLabel={dictionary.admin.close}>
           <form action={createAdminUserAction} className="grid gap-5">
             <UserFormFields mode="create" locale={locale} redirectTo={redirectTo} />
             <div className="flex justify-end">
@@ -270,7 +276,7 @@ export default async function AdminUsersPage({
                 type="submit"
                 className="rounded-full bg-gold px-5 py-3 text-sm font-semibold uppercase tracking-[0.2em] text-ink"
               >
-                Create user
+                {dictionary.admin.createUser}
               </button>
             </div>
           </form>
@@ -278,7 +284,11 @@ export default async function AdminUsersPage({
       ) : null}
 
       {userToEdit ? (
-        <AdminModal title="Edit user" closeHref={redirectTo}>
+        <AdminModal
+          title={locale === "es" ? "Editar usuario" : "Edit user"}
+          closeHref={redirectTo}
+          closeLabel={dictionary.admin.close}
+        >
           <form action={updateAdminUserAction} className="grid gap-5">
             <UserFormFields mode="edit" locale={locale} redirectTo={redirectTo} user={userToEdit} />
             <div className="flex justify-end">
@@ -286,7 +296,7 @@ export default async function AdminUsersPage({
                 type="submit"
                 className="rounded-full border border-gold/30 px-5 py-3 text-sm font-semibold uppercase tracking-[0.2em] text-gold"
               >
-                Save changes
+                {dictionary.admin.saveChanges}
               </button>
             </div>
           </form>

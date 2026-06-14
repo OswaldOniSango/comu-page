@@ -24,7 +24,7 @@ export default async function RosterPage({
   return (
     <main className="page-shell space-y-10">
       <SectionHeading
-        eyebrow="Roster"
+        eyebrow={dictionary.roster.eyebrow}
         title={`${dictionary.roster.title} ${data.selectedSquad.code}`}
         body={`${dictionary.roster.subtitle} ${localizeText(locale, data.selectedSquad.name)}.`}
       />

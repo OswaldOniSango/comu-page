@@ -27,19 +27,19 @@ export default async function AdminDashboardPage({
     <AdminShell locale={locale} labels={dictionary.admin}>
       {!isSupabaseConfigured() ? (
         <div className="panel border-gold/20 bg-gold/10 p-5 text-sm text-white/75">
-          Running in seed mode. Public pages render demo data until Supabase environment variables are configured.
+          {dictionary.admin.dashboardSeedMode}
         </div>
       ) : null}
       <div className="grid gap-4 md:grid-cols-4">
-        <StatCard label="Players" value={`${data.players.length}`} accent />
-        <StatCard label="Games" value={`${data.games.length}`} />
-        <StatCard label="Posts" value={`${data.posts.length}`} />
-        <StatCard label="Galleries" value={`${data.galleries.length}`} />
+        <StatCard label={dictionary.admin.players} value={`${data.players.length}`} accent />
+        <StatCard label={dictionary.admin.games} value={`${data.games.length}`} />
+        <StatCard label={dictionary.admin.posts} value={`${data.posts.length}`} />
+        <StatCard label={dictionary.admin.galleries} value={`${data.galleries.length}`} />
       </div>
       <section className="grid gap-6 xl:grid-cols-2">
         <div className="panel p-6">
           <h2 className="font-[var(--font-display)] text-4xl uppercase tracking-[0.08em] text-white">
-            Upcoming games
+            {dictionary.admin.upcomingGames}
           </h2>
           <div className="mt-6 space-y-4">
             {upcoming.map((game) => (
@@ -55,7 +55,7 @@ export default async function AdminDashboardPage({
         </div>
         <div className="panel p-6">
           <h2 className="font-[var(--font-display)] text-4xl uppercase tracking-[0.08em] text-white">
-            Drafts and latest posts
+            {dictionary.admin.latestPosts}
           </h2>
           <div className="mt-6 space-y-4">
             {recentPosts.map((post) => (
