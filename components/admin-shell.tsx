@@ -15,6 +15,7 @@ type Props = {
     settings: string;
     signOut?: string;
     controlRoom?: string;
+    open?: string;
   };
   children: React.ReactNode;
 };

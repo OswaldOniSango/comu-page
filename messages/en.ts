@@ -41,7 +41,9 @@ const en = {
     primary: "Primary",
     secondary: "Secondary",
     viewGame: "View game",
-    scheduleInProgress: "Schedule in progress"
+    scheduleInProgress: "Schedule in progress",
+    menu: "Menu",
+    open: "Open"
   },
   roster: {
     title: "Official roster",
@@ -90,6 +92,7 @@ const en = {
     close: "Close",
     edit: "Edit",
     delete: "Delete",
+    open: "Open",
     loginEyebrow: "Admin login",
     email: "Email",
     password: "Password",
