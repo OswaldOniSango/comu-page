@@ -5,6 +5,7 @@ export type PublishStatus = "draft" | "published";
 export type PlayerRole = "hitter" | "pitcher" | "two_way";
 export type PostKind = "news" | "announcement" | "recap";
 export type GameStatus = "scheduled" | "final" | "postponed";
+export type AdminRole = "admin" | "superadmin";
 export type ScorebookEventFamily =
   | "hit"
   | "walk"
@@ -119,6 +120,14 @@ export type GameScoreboard = {
   comuErrors: number;
   opponentHits: number;
   opponentErrors: number;
+};
+
+export type AdminUser = {
+  userId: string;
+  email: string;
+  role: AdminRole;
+  isActive: boolean;
+  createdAt: string;
 };
 
 export type Squad = {

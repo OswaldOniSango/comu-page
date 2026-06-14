@@ -11,6 +11,7 @@ type Props = {
     posts: string;
     galleries: string;
     stats: string;
+    users?: string;
     settings: string;
   };
 };
@@ -23,6 +24,7 @@ export function AdminSidebar({ locale, labels }: Props) {
     { href: `/${locale}/admin/posts`, label: labels.posts },
     { href: `/${locale}/admin/galleries`, label: labels.galleries },
     { href: `/${locale}/admin/stats`, label: labels.stats },
+    ...(labels.users ? [{ href: `/${locale}/admin/users`, label: labels.users }] : []),
     { href: `/${locale}/admin/settings`, label: labels.settings }
   ];
 

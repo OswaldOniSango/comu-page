@@ -66,6 +66,7 @@ const en = {
     posts: "Feed",
     galleries: "Galleries",
     stats: "Stats",
+    users: "Users",
     settings: "Settings",
     save: "Save",
     publish: "Publish",

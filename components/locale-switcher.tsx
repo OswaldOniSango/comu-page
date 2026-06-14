@@ -11,7 +11,7 @@ type Props = {
 };
 
 export function LocaleSwitcher({ currentLocale }: Props) {
-  const pathname = usePathname();
+  const pathname = usePathname() ?? "/";
   const segments = pathname.split("/").filter(Boolean);
   const tail = segments.slice(1).join("/");
 
