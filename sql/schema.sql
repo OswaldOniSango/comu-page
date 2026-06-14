@@ -21,12 +21,15 @@ create table if not exists site_settings (
 
 create table if not exists seasons (
   id text primary key,
-  year integer not null unique,
+  year integer not null,
   label text not null,
   is_active boolean not null default false,
   starts_at date,
   ends_at date
 );
+
+alter table if exists seasons
+  drop constraint if exists seasons_year_key;
 
 create table if not exists squads (
   id text primary key check (id in ('a1', 'a3')),

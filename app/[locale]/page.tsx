@@ -6,6 +6,7 @@ import { GameCard } from "@/components/game-card";
 import { PlayerCard } from "@/components/player-card";
 import { PostCard } from "@/components/post-card";
 import { SectionHeading } from "@/components/section-heading";
+import { SeasonSwitch } from "@/components/season-switch";
 import { StatCard } from "@/components/stat-card";
 import { SquadSwitch } from "@/components/squad-switch";
 import { getHomePayload, localizeText } from "@/lib/content";
@@ -17,7 +18,7 @@ export default async function HomePage({
   searchParams
 }: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ squad?: string }>;
+  searchParams: Promise<{ squad?: string; season?: string }>;
 }) {
   const { locale } = await params;
   const query = await searchParams;
@@ -29,6 +30,7 @@ export default async function HomePage({
     settings,
     dictionary,
     activeSeason,
+    seasons,
     squads,
     selectedSquad,
     teamStats,
@@ -37,7 +39,7 @@ export default async function HomePage({
     featuredPlayers,
     featuredPosts,
     featuredGalleries
-  } = await getHomePayload(locale, query.squad);
+  } = await getHomePayload(locale, query.squad, query.season);
 
   return (
     <main>
@@ -56,23 +58,30 @@ export default async function HomePage({
             </div>
             <div className="flex flex-wrap justify-center gap-4 lg:justify-start">
               <Link
-                href={`/${locale}/roster?squad=${selectedSquad.id}`}
+                href={`/${locale}/roster?squad=${selectedSquad.id}&season=${activeSeason.id}`}
                 className="inline-flex items-center gap-2 rounded-full bg-gold px-6 py-3 text-sm font-semibold uppercase tracking-[0.24em] text-ink"
               >
                 {dictionary.home.viewRoster}
                 <ArrowRight className="h-4 w-4" />
               </Link>
               <Link
-                href={`/${locale}/games?squad=${selectedSquad.id}`}
+                href={`/${locale}/games?squad=${selectedSquad.id}&season=${activeSeason.id}`}
                 className="inline-flex items-center gap-2 rounded-full border border-white/15 px-6 py-3 text-sm font-semibold uppercase tracking-[0.24em] text-white/75"
               >
                 {dictionary.home.viewCalendar}
               </Link>
             </div>
+            <SeasonSwitch
+              basePath={`/${locale}`}
+              seasons={seasons}
+              selectedSeasonId={activeSeason.id}
+              extraParams={{ squad: selectedSquad.id }}
+            />
             <SquadSwitch
               basePath={`/${locale}`}
               squads={squads}
               selectedSquadId={selectedSquad.id}
+              extraParams={{ season: activeSeason.id }}
             />
             <div className="grid gap-4 text-left sm:grid-cols-3">
               <StatCard label={dictionary.common.record} value={`${teamStats.wins}-${teamStats.losses}`} accent />

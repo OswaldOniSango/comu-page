@@ -11,7 +11,7 @@ export default async function PlayerPage({
   searchParams
 }: {
   params: Promise<{ locale: string; slug: string }>;
-  searchParams: Promise<{ squad?: string }>;
+  searchParams: Promise<{ squad?: string; season?: string }>;
 }) {
   const { locale, slug } = await params;
   const query = await searchParams;
@@ -19,7 +19,7 @@ export default async function PlayerPage({
     notFound();
   }
 
-  const player = await getPlayerBySlug(slug, query.squad);
+  const player = await getPlayerBySlug(slug, query.squad, query.season);
   if (!player) {
     notFound();
   }

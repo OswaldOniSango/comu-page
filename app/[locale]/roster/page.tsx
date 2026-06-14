@@ -1,3 +1,4 @@
+import { SeasonSwitch } from "@/components/season-switch";
 import { SquadSwitch } from "@/components/squad-switch";
 import { RosterGrid } from "@/components/roster-grid";
 import { SectionHeading } from "@/components/section-heading";
@@ -10,7 +11,7 @@ export default async function RosterPage({
   searchParams
 }: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ squad?: string }>;
+  searchParams: Promise<{ squad?: string; season?: string }>;
 }) {
   const { locale } = await params;
   const query = await searchParams;
@@ -19,19 +20,26 @@ export default async function RosterPage({
   }
 
   const dictionary = getDictionary(locale);
-  const data = await getRosterPayload(locale, query.squad);
+  const data = await getRosterPayload(locale, query.squad, query.season);
 
   return (
     <main className="page-shell space-y-10">
       <SectionHeading
         eyebrow={dictionary.roster.eyebrow}
-        title={`${dictionary.roster.title} ${data.selectedSquad.code}`}
+        title={`${dictionary.roster.title} ${data.selectedSquad.code} • ${data.activeSeason.label}`}
         body={`${dictionary.roster.subtitle} ${localizeText(locale, data.selectedSquad.name)}.`}
+      />
+      <SeasonSwitch
+        basePath={`/${locale}/roster`}
+        seasons={data.seasons}
+        selectedSeasonId={data.activeSeason.id}
+        extraParams={{ squad: data.selectedSquad.id }}
       />
       <SquadSwitch
         basePath={`/${locale}/roster`}
         squads={data.squads}
         selectedSquadId={data.selectedSquad.id}
+        extraParams={{ season: data.activeSeason.id }}
       />
       <RosterGrid
         locale={locale}

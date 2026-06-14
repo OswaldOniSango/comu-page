@@ -160,6 +160,8 @@ export type Season = {
   year: number;
   label: string;
   active: boolean;
+  startsAt?: string;
+  endsAt?: string;
 };
 
 export type TeamSeasonStats = {

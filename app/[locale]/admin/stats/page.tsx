@@ -2,8 +2,9 @@ import Link from "next/link";
 
 import { AdminModal } from "@/components/admin-modal";
 import { AdminShell } from "@/components/admin-shell";
+import { SeasonSwitch } from "@/components/season-switch";
 import { SquadSwitch } from "@/components/squad-switch";
-import { getSiteData, resolveSelectedSquad, sortPlayers } from "@/lib/content";
+import { getSiteData, resolveSelectedSeason, resolveSelectedSquad, sortPlayers } from "@/lib/content";
 import { savePlayerStatsAction, saveTeamStatsAction } from "@/lib/admin-actions";
 import { getDictionary, isLocale } from "@/lib/i18n";
 import { requireAdminSession } from "@/lib/session";
@@ -160,7 +161,7 @@ export default async function AdminStatsPage({
   searchParams
 }: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ edit?: string; squad?: string }>;
+  searchParams: Promise<{ edit?: string; squad?: string; season?: string }>;
 }) {
   const { locale } = await params;
   const query = await searchParams;
@@ -173,16 +174,21 @@ export default async function AdminStatsPage({
   const dictionary = getDictionary(locale);
   const data = await getSiteData();
   const selectedSquad = resolveSelectedSquad(query.squad, data.squads);
+  const selectedSeason = resolveSelectedSeason(query.season, data.seasons);
   const players = sortPlayers(
-    data.players.filter((player) => player.assignment.squadId === selectedSquad.id)
+    data.players.filter(
+      (player) =>
+        player.assignment.squadId === selectedSquad.id &&
+        player.assignment.seasonId === selectedSeason.id
+    )
   );
   const teamStats =
     data.teamStatsBySquad.find(
-      (item) => item.seasonId === data.activeSeason.id && item.squadId === selectedSquad.id
+      (item) => item.seasonId === selectedSeason.id && item.squadId === selectedSquad.id
     ) ?? data.teamStats;
   const basePath = `/${locale}/admin/stats`;
   const editingPlayer = query.edit ? players.find((player) => player.id === query.edit) : undefined;
-  const listPath = `${basePath}?squad=${selectedSquad.id}`;
+  const listPath = `${basePath}?squad=${selectedSquad.id}&season=${selectedSeason.id}`;
 
   return (
     <AdminShell locale={locale} labels={dictionary.admin}>
@@ -192,10 +198,17 @@ export default async function AdminStatsPage({
             <h2 className="font-[var(--font-display)] text-4xl uppercase tracking-[0.08em] text-white">
               {dictionary.admin.teamStats}
             </h2>
+            <SeasonSwitch
+              basePath={basePath}
+              seasons={data.seasons}
+              selectedSeasonId={selectedSeason.id}
+              extraParams={{ squad: selectedSquad.id }}
+            />
             <SquadSwitch
               basePath={basePath}
               squads={data.squads}
               selectedSquadId={selectedSquad.id}
+              extraParams={{ season: selectedSeason.id }}
             />
           </div>
           <div className="mt-6 grid gap-4 sm:grid-cols-2">
@@ -220,7 +233,7 @@ export default async function AdminStatsPage({
         <form action={saveTeamStatsAction} className="panel p-6">
           <input type="hidden" name="locale" value={locale} />
           <input type="hidden" name="redirectTo" value={listPath} />
-          <input type="hidden" name="seasonId" value={data.activeSeason.id} />
+          <input type="hidden" name="seasonId" value={selectedSeason.id} />
           <input type="hidden" name="squadId" value={selectedSquad.id} />
           <h2 className="font-[var(--font-display)] text-4xl uppercase tracking-[0.08em] text-white">
             {dictionary.admin.updateTeamLine}
@@ -268,7 +281,7 @@ export default async function AdminStatsPage({
                   G {player.stats.gamesPlayed}
                 </div>
                 <Link
-                  href={`${basePath}?squad=${selectedSquad.id}&edit=${player.id}`}
+                  href={`${basePath}?squad=${selectedSquad.id}&season=${selectedSeason.id}&edit=${player.id}`}
                   className="rounded-full border border-gold/30 px-4 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-gold"
                 >
                   {dictionary.admin.editStats}

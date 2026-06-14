@@ -11,6 +11,7 @@ type Props = {
     posts: string;
     galleries: string;
     stats: string;
+    seasons?: string;
     users?: string;
     settings: string;
     signOut?: string;

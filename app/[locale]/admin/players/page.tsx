@@ -3,8 +3,9 @@ import Link from "next/link";
 import { AdminModal } from "@/components/admin-modal";
 import { AdminShell } from "@/components/admin-shell";
 import { ImageUploadField } from "@/components/image-upload-field";
+import { SeasonSwitch } from "@/components/season-switch";
 import { SquadSwitch } from "@/components/squad-switch";
-import { getSiteData, resolveSelectedSquad, sortPlayers } from "@/lib/content";
+import { getSiteData, resolveSelectedSeason, resolveSelectedSquad, sortPlayers } from "@/lib/content";
 import { deletePlayerAction, savePlayerAction } from "@/lib/admin-actions";
 import { getDictionary, isLocale } from "@/lib/i18n";
 import { requireAdminSession } from "@/lib/session";
@@ -180,7 +181,7 @@ export default async function AdminPlayersPage({
   searchParams
 }: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ edit?: string; create?: string; squad?: string }>;
+  searchParams: Promise<{ edit?: string; create?: string; squad?: string; season?: string }>;
 }) {
   const { locale } = await params;
   const query = await searchParams;
@@ -193,13 +194,18 @@ export default async function AdminPlayersPage({
   const dictionary = getDictionary(locale);
   const data = await getSiteData();
   const selectedSquad = resolveSelectedSquad(query.squad, data.squads);
+  const selectedSeason = resolveSelectedSeason(query.season, data.seasons);
   const players = sortPlayers(
-    data.players.filter((player) => player.assignment.squadId === selectedSquad.id)
+    data.players.filter(
+      (player) =>
+        player.assignment.squadId === selectedSquad.id &&
+        player.assignment.seasonId === selectedSeason.id
+    )
   );
   const basePath = `/${locale}/admin/players`;
   const editingPlayer = query.edit ? players.find((player) => player.id === query.edit) : undefined;
   const isCreating = query.create === "1";
-  const listPath = `${basePath}?squad=${selectedSquad.id}`;
+  const listPath = `${basePath}?squad=${selectedSquad.id}&season=${selectedSeason.id}`;
 
   return (
     <AdminShell locale={locale} labels={dictionary.admin}>
@@ -213,16 +219,23 @@ export default async function AdminPlayersPage({
               {dictionary.admin.playersSubtitle}
             </p>
           </div>
+          <SeasonSwitch
+            basePath={basePath}
+            seasons={data.seasons}
+            selectedSeasonId={selectedSeason.id}
+            extraParams={{ squad: selectedSquad.id }}
+          />
           <SquadSwitch
             basePath={basePath}
             squads={data.squads}
             selectedSquadId={selectedSquad.id}
+            extraParams={{ season: selectedSeason.id }}
           />
           <Link
-            href={`${basePath}?squad=${selectedSquad.id}&create=1`}
-                className="rounded-full bg-gold px-5 py-3 text-xs font-semibold uppercase tracking-[0.24em] text-ink"
-              >
-                {dictionary.admin.newPlayer}
+            href={`${basePath}?squad=${selectedSquad.id}&season=${selectedSeason.id}&create=1`}
+            className="rounded-full bg-gold px-5 py-3 text-xs font-semibold uppercase tracking-[0.24em] text-ink"
+          >
+            {dictionary.admin.newPlayer}
               </Link>
         </div>
       </div>
@@ -241,7 +254,7 @@ export default async function AdminPlayersPage({
               </div>
               <div className="flex gap-3">
                 <Link
-                  href={`${basePath}?squad=${selectedSquad.id}&edit=${player.id}`}
+                  href={`${basePath}?squad=${selectedSquad.id}&season=${selectedSeason.id}&edit=${player.id}`}
                   className="rounded-full border border-gold/30 px-4 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-gold"
                 >
                   {dictionary.admin.edit}
@@ -276,7 +289,7 @@ export default async function AdminPlayersPage({
           <PlayerForm
             locale={locale}
             redirectTo={listPath}
-            seasonId={data.activeSeason.id}
+            seasonId={selectedSeason.id}
             squadId={selectedSquad.id}
             submitLabel={editingPlayer ? dictionary.admin.updatePlayer : dictionary.admin.createPlayer}
             player={editingPlayer}

@@ -569,6 +569,11 @@ export function resolveSelectedSquad(requested: string | undefined, squads: Squa
   return activeSquads.find((squad) => squad.id === requested) ?? fallback;
 }
 
+export function resolveSelectedSeason(requested: string | undefined, seasons: Season[]) {
+  const fallback = seasons.find((season) => season.active) ?? seasons[0] ?? seedSeasons[0];
+  return seasons.find((season) => season.id === requested) ?? fallback;
+}
+
 function getTeamStatsForSquad(items: TeamSeasonStats[], seasonId: string, squadId: SquadId) {
   return (
     items.find((item) => item.seasonId === seasonId && item.squadId === squadId) ??
@@ -594,6 +599,14 @@ function filterGamesBySquad(games: Game[], squadId: SquadId) {
   return games.filter((game) => game.squadId === squadId);
 }
 
+function filterPlayersBySeason(players: Player[], seasonId: string) {
+  return players.filter((player) => player.assignment.seasonId === seasonId);
+}
+
+function filterGamesBySeason(games: Game[], seasonId: string) {
+  return games.filter((game) => game.seasonId === seasonId);
+}
+
 async function loadFromSupabase() {
   const client = createAdminClient();
   if (!client) {
@@ -611,7 +624,11 @@ async function loadFromSupabase() {
     galleriesResult
   ] = await Promise.all([
     client.from("site_settings").select("*").eq("id", "primary").maybeSingle(),
-    client.from("seasons").select("*").order("year", { ascending: false }),
+    client
+      .from("seasons")
+      .select("*")
+      .order("starts_at", { ascending: false, nullsFirst: false })
+      .order("year", { ascending: false }),
     client.from("squads").select("*").order("sort_order", { ascending: true }),
     client.from("team_season_stats").select("*"),
     client
@@ -658,7 +675,9 @@ async function loadFromSupabase() {
       id: String(row.id),
       year: Number(row.year),
       label: String(row.label),
-      active: Boolean(row.is_active)
+      active: Boolean(row.is_active),
+      startsAt: row.starts_at ? String(row.starts_at) : undefined,
+      endsAt: row.ends_at ? String(row.ends_at) : undefined
     })) || seedSeasons;
 
   const mappedSquads = mapSquads(squadsResult.data as SquadRow[] | null | undefined);
@@ -711,13 +730,19 @@ export async function getSiteData(): Promise<SiteData> {
   };
 }
 
-export async function getHomePayload(locale: Locale, squadParam?: string) {
+export async function getHomePayload(locale: Locale, squadParam?: string, seasonParam?: string) {
   const data = await getSiteData();
   const dictionary = getDictionary(locale);
   const selectedSquad = resolveSelectedSquad(squadParam, data.squads);
-  const squadPlayers = filterPlayersBySquad(data.players, selectedSquad.id);
+  const selectedSeason = resolveSelectedSeason(seasonParam, data.seasons);
+  const squadPlayers = filterPlayersBySeason(
+    filterPlayersBySquad(data.players, selectedSquad.id),
+    selectedSeason.id
+  );
   const publishedPlayers = squadPlayers.filter((player) => player.assignment.status === "published");
-  const squadGames = sortGames(filterGamesBySquad(data.games, selectedSquad.id));
+  const squadGames = sortGames(
+    filterGamesBySeason(filterGamesBySquad(data.games, selectedSquad.id), selectedSeason.id)
+  );
   const nextGame = squadGames.find((game) => game.status === "scheduled");
   const latestResult = [...squadGames]
     .filter((game) => game.status === "final")
@@ -727,62 +752,77 @@ export async function getHomePayload(locale: Locale, squadParam?: string) {
     ...data,
     dictionary,
     selectedSquad,
-    teamStats: getTeamStatsForSquad(data.teamStatsBySquad, data.activeSeason.id, selectedSquad.id),
+    activeSeason: selectedSeason,
+    teamStats: getTeamStatsForSquad(data.teamStatsBySquad, selectedSeason.id, selectedSquad.id),
     players: publishedPlayers,
     games: squadGames,
     nextGame,
     latestResult,
     featuredPlayers: publishedPlayers.filter((player) => player.assignment.featured).slice(0, 3),
-    featuredPosts: data.posts.filter((post) => post.status === "published").slice(0, 3),
+    featuredPosts: data.posts
+      .filter((post) => post.status === "published" && post.seasonId === selectedSeason.id)
+      .slice(0, 3),
     featuredGalleries: data.galleries.filter((gallery) => gallery.status === "published").slice(0, 2)
   };
 }
 
-export async function getRosterPayload(locale: Locale, squadParam?: string) {
+export async function getRosterPayload(locale: Locale, squadParam?: string, seasonParam?: string) {
   const data = await getSiteData();
   const dictionary = getDictionary(locale);
   const selectedSquad = resolveSelectedSquad(squadParam, data.squads);
+  const selectedSeason = resolveSelectedSeason(seasonParam, data.seasons);
 
   return {
     ...data,
     dictionary,
+    activeSeason: selectedSeason,
     selectedSquad,
     players: sortPlayers(
-      filterPlayersBySquad(data.players, selectedSquad.id).filter(
+      filterPlayersBySeason(filterPlayersBySquad(data.players, selectedSquad.id), selectedSeason.id).filter(
         (player) => player.assignment.status === "published"
       )
     )
   };
 }
 
-export async function getGamesPayload(locale: Locale, squadParam?: string) {
+export async function getGamesPayload(locale: Locale, squadParam?: string, seasonParam?: string) {
   const data = await getSiteData();
   const dictionary = getDictionary(locale);
   const selectedSquad = resolveSelectedSquad(squadParam, data.squads);
+  const selectedSeason = resolveSelectedSeason(seasonParam, data.seasons);
 
   return {
     ...data,
     dictionary,
+    activeSeason: selectedSeason,
     selectedSquad,
-    games: sortGames(filterGamesBySquad(data.games, selectedSquad.id))
+    games: sortGames(filterGamesBySeason(filterGamesBySquad(data.games, selectedSquad.id), selectedSeason.id))
   };
 }
 
-export async function getPlayerBySlug(slug: string, squadParam?: string) {
+export async function getPlayerBySlug(slug: string, squadParam?: string, seasonParam?: string) {
   const data = await getSiteData();
   const selectedSquad = resolveSelectedSquad(squadParam, data.squads);
+  const selectedSeason = resolveSelectedSeason(seasonParam, data.seasons);
 
   return (
+    filterPlayersBySeason(filterPlayersBySquad(data.players, selectedSquad.id), selectedSeason.id).find(
+      (player) => player.slug === slug
+    ) ??
     filterPlayersBySquad(data.players, selectedSquad.id).find((player) => player.slug === slug) ??
     data.players.find((player) => player.slug === slug)
   );
 }
 
-export async function getGameBySlug(slug: string, squadParam?: string) {
+export async function getGameBySlug(slug: string, squadParam?: string, seasonParam?: string) {
   const data = await getSiteData();
   const selectedSquad = resolveSelectedSquad(squadParam, data.squads);
+  const selectedSeason = resolveSelectedSeason(seasonParam, data.seasons);
 
   return (
+    filterGamesBySeason(filterGamesBySquad(data.games, selectedSquad.id), selectedSeason.id).find(
+      (game) => game.slug === slug
+    ) ??
     filterGamesBySquad(data.games, selectedSquad.id).find((game) => game.slug === slug) ??
     data.games.find((game) => game.slug === slug)
   );
