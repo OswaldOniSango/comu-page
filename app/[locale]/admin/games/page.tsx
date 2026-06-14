@@ -1,10 +1,9 @@
 import Link from "next/link";
 
+import { AdminGamesFilters } from "@/components/admin-games-filters";
 import { AdminModal } from "@/components/admin-modal";
 import { AdminShell } from "@/components/admin-shell";
 import { ImageUploadField } from "@/components/image-upload-field";
-import { SeasonSwitch } from "@/components/season-switch";
-import { SquadSwitch } from "@/components/squad-switch";
 import { deleteGameAction, saveGameAction } from "@/lib/admin-actions";
 import { getSiteData, resolveSelectedSeason, resolveSelectedSquad, sortGames } from "@/lib/content";
 import { getDictionary, isLocale, toLocalDateTimeInputValue } from "@/lib/i18n";
@@ -200,18 +199,15 @@ export default async function AdminGamesPage({
             </h1>
             <p className="mt-3 text-sm text-white/65">{dictionary.admin.gamesSubtitle}</p>
           </div>
-          <div className="flex w-full flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between lg:w-auto lg:justify-end">
-            <SeasonSwitch
+          <div className="flex w-full flex-col gap-3 lg:w-auto lg:items-end">
+            <AdminGamesFilters
               basePath={basePath}
               seasons={data.seasons}
-              selectedSeasonId={selectedSeason.id}
-              extraParams={{ squad: selectedSquad.id }}
-            />
-            <SquadSwitch
-              basePath={basePath}
               squads={data.squads}
+              selectedSeasonId={selectedSeason.id}
               selectedSquadId={selectedSquad.id}
-              extraParams={{ season: selectedSeason.id }}
+              seasonLabel={dictionary.common.season}
+              squadLabel={dictionary.admin.category}
             />
             <Link
               href={`${basePath}?squad=${selectedSquad.id}&season=${selectedSeason.id}&create=1`}

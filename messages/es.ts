@@ -85,6 +85,7 @@ const es = {
     stats: "Estadisticas",
     seasons: "Temporadas",
     users: "Usuarios",
+    category: "Categoria",
     settings: "Configuracion",
     save: "Guardar",
     publish: "Publicar",

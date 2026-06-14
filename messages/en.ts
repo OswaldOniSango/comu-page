@@ -85,6 +85,7 @@ const en = {
     stats: "Stats",
     seasons: "Seasons",
     users: "Users",
+    category: "Category",
     settings: "Settings",
     save: "Save",
     publish: "Publish",
