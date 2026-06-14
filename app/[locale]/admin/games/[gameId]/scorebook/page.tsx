@@ -3,64 +3,21 @@ import { notFound } from "next/navigation";
 
 import { AdminModal } from "@/components/admin-modal";
 import { AdminShell } from "@/components/admin-shell";
+import { ScorebookEventForm } from "@/components/scorebook-event-form";
 import {
   deleteGameBattingEventAction,
-  saveGameBattingEventAction,
   saveGameLineupAction,
   saveOpponentLinescoreAction
 } from "@/lib/admin-actions";
 import { getAdminGameScorebookPayload, localizeText } from "@/lib/content";
 import { formatDate, getDictionary, isLocale } from "@/lib/i18n";
-import { getDefaultDestinationForEvent } from "@/lib/scorebook";
 import { requireAdminSession } from "@/lib/session";
 import { isSupabaseConfigured } from "@/lib/supabase";
-import type { BaseDestination, GameBattingEvent, Player, ScorebookEventCode } from "@/lib/types";
-
-const EVENT_OPTIONS: Array<{ value: ScorebookEventCode; label: string }> = [
-  { value: "single", label: "Hit al OF" },
-  { value: "double", label: "Doble" },
-  { value: "triple", label: "Triple" },
-  { value: "home_run", label: "Home run" },
-  { value: "bb", label: "Base por bolas" },
-  { value: "hbp", label: "Golpeado" },
-  { value: "k", label: "Ponche" },
-  { value: "go", label: "Out en el cuadro" },
-  { value: "fo", label: "Fly out" },
-  { value: "lo", label: "Line out" },
-  { value: "e", label: "Error" },
-  { value: "fc", label: "Fielder's choice" },
-  { value: "sf", label: "Sacrifice fly" },
-  { value: "sh", label: "Sacrifice bunt" },
-  { value: "dp", label: "Double play" }
-];
-
-const ADVANCE_OPTIONS: Array<{ value: BaseDestination; label: string }> = [
-  { value: "1", label: "1B" },
-  { value: "2", label: "2B" },
-  { value: "3", label: "3B" },
-  { value: "H", label: "Home" },
-  { value: "O", label: "Out" }
-];
+import type { GameBattingEvent, Player } from "@/lib/types";
 
 const DEFENSIVE_POSITIONS = ["P", "C", "1B", "2B", "3B", "SS", "LF", "CF", "RF", "DH"] as const;
 
 type ScorebookPayload = NonNullable<Awaited<ReturnType<typeof getAdminGameScorebookPayload>>>;
-
-function fieldClassName() {
-  return "w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none transition focus:border-gold/50";
-}
-
-function labelClassName() {
-  return "grid gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/55";
-}
-
-function panelSectionClassName() {
-  return "rounded-[1.5rem] border border-white/10 bg-black/25 p-5";
-}
-
-function getAdvanceFor(event: GameBattingEvent | undefined, startBase: "B" | "1" | "2" | "3") {
-  return event?.runnerAdvances.find((advance) => advance.startBase === startBase)?.endBase;
-}
 
 function getPlayerLabel(player: Player) {
   return `#${player.assignment.jerseyNumber} ${player.firstName} ${player.lastName}`;
@@ -83,6 +40,7 @@ function getPlayerEventsByInning(events: GameBattingEvent[], playerId: string, i
 function EventEditorForm({
   locale,
   redirectTo,
+  errorRedirectTo,
   gameId,
   seasonId,
   squadId,
@@ -91,10 +49,12 @@ function EventEditorForm({
   initialPlayerId,
   initialInningNumber,
   event,
-  duplicate
+  duplicate,
+  errorCode
 }: {
   locale: string;
   redirectTo: string;
+  errorRedirectTo: string;
   gameId: string;
   seasonId: string;
   squadId: string;
@@ -104,233 +64,24 @@ function EventEditorForm({
   initialInningNumber?: number;
   event?: GameBattingEvent;
   duplicate?: boolean;
+  errorCode?: string;
 }) {
-  const selectedEventCode = event?.eventCode ?? "single";
-  const defaultAdvance = getDefaultDestinationForEvent(selectedEventCode);
-
   return (
-    <form action={saveGameBattingEventAction} className="space-y-5">
-      <input type="hidden" name="locale" value={locale} />
-      <input type="hidden" name="redirectTo" value={redirectTo} />
-      <input type="hidden" name="gameId" value={gameId} />
-      <input type="hidden" name="seasonId" value={seasonId} />
-      <input type="hidden" name="squadId" value={squadId} />
-      <input type="hidden" name="id" value={duplicate ? "" : event?.id ?? ""} />
-      <input type="hidden" name="defaultAdvanceBatter" value={defaultAdvance} />
-
-      <div className="grid gap-4 md:grid-cols-[120px_minmax(0,1fr)_120px]">
-        <label className={labelClassName()}>
-          Inning
-          <input
-            name="inningNumber"
-            type="number"
-            min={1}
-            defaultValue={event?.inningNumber ?? initialInningNumber ?? 1}
-            className={fieldClassName()}
-          />
-        </label>
-        <label className={labelClassName()}>
-          Bateador
-          <select
-            name="batterPlayerId"
-            defaultValue={
-              event?.batterPlayerId ?? initialPlayerId ?? battingRoster[0]?.id ?? roster[0]?.id ?? ""
-            }
-            className={fieldClassName()}
-          >
-            {battingRoster.map((player) => (
-              <option key={player.id} value={player.id} className="bg-ink">
-                {getPlayerLabel(player)}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className={labelClassName()}>
-          Outs Antes
-          <select
-            name="outsBefore"
-            defaultValue={String(event?.outsBefore ?? 0)}
-            className={fieldClassName()}
-          >
-            <option className="bg-ink" value="0">
-              0
-            </option>
-            <option className="bg-ink" value="1">
-              1
-            </option>
-            <option className="bg-ink" value="2">
-              2
-            </option>
-          </select>
-        </label>
-      </div>
-
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_140px_220px]">
-        <label className={labelClassName()}>
-          Resultado
-          <select name="eventCode" defaultValue={selectedEventCode} className={fieldClassName()}>
-            {EVENT_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value} className="bg-ink">
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className={labelClassName()}>
-          Zona
-          <select name="hitZone" defaultValue={event?.hitZone ?? "7"} className={fieldClassName()}>
-            <option className="bg-ink" value="">
-              N/A
-            </option>
-            <option className="bg-ink" value="7">
-              7
-            </option>
-            <option className="bg-ink" value="8">
-              8
-            </option>
-            <option className="bg-ink" value="9">
-              9
-            </option>
-          </select>
-        </label>
-        <label className={labelClassName()}>
-          Ruta Defensiva
-          <input
-            name="fielderPath"
-            defaultValue={event?.fielderPath ?? ""}
-            placeholder="63, F8, 5-4-3"
-            className={fieldClassName()}
-          />
-        </label>
-      </div>
-
-      <div className="grid gap-4 lg:grid-cols-[1.35fr_0.65fr]">
-        <section className={panelSectionClassName()}>
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h3 className="text-lg font-semibold text-white">Bases antes de la jugada</h3>
-              <p className="mt-1 text-sm text-white/55">
-                Marca quién estaba en base antes del turno.
-              </p>
-            </div>
-            <div className="rounded-full border border-gold/20 bg-gold/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-gold">
-              Contexto previo
-            </div>
-          </div>
-
-          <div className="mt-4 grid gap-4 md:grid-cols-3">
-            {([
-              { name: "baseFirstPlayerId", label: "1B" },
-              { name: "baseSecondPlayerId", label: "2B" },
-              { name: "baseThirdPlayerId", label: "3B" }
-            ] as const).map((base) => (
-              <label key={base.name} className={labelClassName()}>
-                {base.label}
-                <select
-                  name={base.name}
-                  defaultValue={
-                    base.name === "baseFirstPlayerId"
-                      ? event?.basesBefore.first ?? ""
-                      : base.name === "baseSecondPlayerId"
-                        ? event?.basesBefore.second ?? ""
-                        : event?.basesBefore.third ?? ""
-                  }
-                  className={fieldClassName()}
-                >
-                  <option className="bg-ink" value="">
-                    Base vacía
-                  </option>
-                  {roster.map((player) => (
-                    <option key={player.id} value={player.id} className="bg-ink">
-                      {getPlayerLabel(player)}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            ))}
-          </div>
-        </section>
-
-        <section className={panelSectionClassName()}>
-          <h3 className="text-lg font-semibold text-white">Guía rápida</h3>
-          <div className="mt-4 space-y-3 text-sm text-white/65">
-            <p>`H7` hit al left.</p>
-            <p>`H8` hit al center.</p>
-            <p>`H9` hit al right.</p>
-            <p>`63` rola short a primera.</p>
-            <p>`BB` base por bolas.</p>
-          </div>
-        </section>
-      </div>
-
-      <section className={panelSectionClassName()}>
-        <div>
-          <h3 className="text-lg font-semibold text-white">Avance de corredores</h3>
-          <p className="mt-1 text-sm text-white/55">
-            Define cómo terminó cada corredor después de la jugada.
-          </p>
-        </div>
-
-        <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {([
-            { name: "advanceBatter", label: "Bateador", startBase: "B" },
-            { name: "advanceFirst", label: "Runner en 1B", startBase: "1" },
-            { name: "advanceSecond", label: "Runner en 2B", startBase: "2" },
-            { name: "advanceThird", label: "Runner en 3B", startBase: "3" }
-          ] as const).map((advance) => (
-            <label key={advance.name} className={labelClassName()}>
-              {advance.label}
-              <select
-                name={advance.name}
-                defaultValue={getAdvanceFor(event, advance.startBase) ?? defaultAdvance}
-                className={fieldClassName()}
-              >
-                {ADVANCE_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value} className="bg-ink">
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-          ))}
-        </div>
-      </section>
-
-      <div className="grid gap-4 lg:grid-cols-[160px_minmax(0,1fr)]">
-        <label className={labelClassName()}>
-          RBI
-          <input
-            name="rbiCount"
-            type="number"
-            min={0}
-            defaultValue={event?.rbiCount ?? 0}
-            className={fieldClassName()}
-          />
-        </label>
-        <label className={labelClassName()}>
-          Notas
-          <textarea
-            name="notes"
-            defaultValue={event?.notes ?? ""}
-            rows={3}
-            placeholder="Detalle opcional de la jugada"
-            className={fieldClassName()}
-          />
-        </label>
-      </div>
-
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-[1.25rem] border border-gold/20 bg-gold/5 px-4 py-4">
-        <p className="text-sm text-white/65">
-          La notación se genera automáticamente usando resultado, zona y ruta defensiva.
-        </p>
-        <button
-          type="submit"
-          className="rounded-full bg-gold px-5 py-3 text-sm font-semibold uppercase tracking-[0.2em] text-ink"
-        >
-          {event && !duplicate ? "Guardar jugada" : "Agregar jugada"}
-        </button>
-      </div>
-    </form>
+    <ScorebookEventForm
+      locale={locale}
+      redirectTo={redirectTo}
+      errorRedirectTo={errorRedirectTo}
+      gameId={gameId}
+      seasonId={seasonId}
+      squadId={squadId}
+      roster={roster}
+      battingRoster={battingRoster}
+      initialPlayerId={initialPlayerId}
+      initialInningNumber={initialInningNumber}
+      event={event}
+      duplicate={duplicate}
+      errorCode={errorCode}
+    />
   );
 }
 
@@ -418,6 +169,7 @@ export default async function AdminGameScorebookPage({
     duplicate?: string;
     createPlayer?: string;
     createInning?: string;
+    error?: string;
   }>;
 }) {
   const { locale, gameId } = await params;
@@ -462,6 +214,13 @@ export default async function AdminGameScorebookPage({
   const basePath = `/${locale}/admin/games/${gameId}/scorebook`;
   const summaryPath = `${basePath}?tab=resumen`;
   const boardPath = `${basePath}?tab=planilla`;
+  const editorPath = editingEvent
+    ? `${basePath}?tab=${activeTab}&edit=${editingEvent.id}`
+    : duplicateEvent
+      ? `${basePath}?tab=${activeTab}&duplicate=${duplicateEvent.id}`
+      : creatingPlayerId && creatingInningNumber
+        ? `${basePath}?tab=${activeTab}&createPlayer=${creatingPlayerId}&createInning=${creatingInningNumber}`
+        : `${basePath}?tab=${activeTab}`;
 
   return (
     <AdminShell locale={locale} labels={dictionary.admin}>
@@ -984,6 +743,7 @@ export default async function AdminGameScorebookPage({
           <EventEditorForm
             locale={locale}
             redirectTo={`${basePath}?tab=${activeTab}`}
+            errorRedirectTo={editorPath}
             gameId={game.id}
             seasonId={game.seasonId}
             squadId={game.squadId}
@@ -993,6 +753,7 @@ export default async function AdminGameScorebookPage({
             initialInningNumber={creatingInningNumber}
             event={editingEvent ?? duplicateEvent}
             duplicate={Boolean(duplicateEvent && !editingEvent)}
+            errorCode={query.error}
           />
         </AdminModal>
       ) : null}

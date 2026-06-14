@@ -22,6 +22,7 @@ export type ScorebookEventCode =
   | "bb"
   | "hbp"
   | "k"
+  | "k_looking"
   | "go"
   | "fo"
   | "lo"

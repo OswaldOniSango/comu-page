@@ -258,7 +258,7 @@ create table if not exists game_batting_events (
     event_family in ('hit', 'walk', 'hbp', 'strikeout', 'out', 'error', 'fielder_choice', 'sacrifice')
   ),
   event_code text not null check (
-    event_code in ('single', 'double', 'triple', 'home_run', 'bb', 'hbp', 'k', 'go', 'fo', 'lo', 'e', 'fc', 'sf', 'sh', 'dp')
+    event_code in ('single', 'double', 'triple', 'home_run', 'bb', 'hbp', 'k', 'k_looking', 'go', 'fo', 'lo', 'e', 'fc', 'sf', 'sh', 'dp')
   ),
   hit_zone text check (hit_zone in ('7', '8', '9')),
   fielder_path text,
@@ -276,6 +276,21 @@ create table if not exists game_batting_events (
 
 create index if not exists game_batting_events_game_idx on game_batting_events (game_id, sequence_no);
 create index if not exists game_batting_events_season_squad_idx on game_batting_events (season_id, squad_id);
+
+do $$
+begin
+  begin
+    alter table game_batting_events drop constraint if exists game_batting_events_event_code_check;
+  exception
+    when undefined_object then null;
+  end;
+end $$;
+
+alter table if exists game_batting_events
+  add constraint game_batting_events_event_code_check
+  check (
+    event_code in ('single', 'double', 'triple', 'home_run', 'bb', 'hbp', 'k', 'k_looking', 'go', 'fo', 'lo', 'e', 'fc', 'sf', 'sh', 'dp')
+  );
 
 create table if not exists game_opponent_linescore (
   game_id uuid not null references games(id) on delete cascade,

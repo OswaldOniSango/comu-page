@@ -5,6 +5,9 @@ import {
   buildScoreNotation,
   deriveGameBattingBoxScore,
   derivePlayerBattingStats,
+  deriveRunsByInning,
+  getComuRuns,
+  getOutsAdded,
   groupEventsByInning,
   mapStoredRunsByInning,
   sumStoredRunsByInning
@@ -36,10 +39,13 @@ const baseEvent: GameBattingEvent = {
 
 describe("scorebook helpers", () => {
   it("builds simplified official notation", () => {
-    expect(buildScoreNotation("single", "7", null)).toBe("H7");
-    expect(buildScoreNotation("double", "8", null)).toBe("2B8");
+    expect(buildScoreNotation("single", null, "7")).toBe("H7");
+    expect(buildScoreNotation("double", null, "8")).toBe("2B8");
+    expect(buildScoreNotation("k_looking", null, null)).toBe("ꓘ");
     expect(buildScoreNotation("go", null, "63")).toBe("63");
     expect(buildScoreNotation("sf", null, "8")).toBe("SF8");
+    expect(buildScoreNotation("e", null, "E5")).toBe("E5");
+    expect(buildScoreNotation("fc", null, "FC6")).toBe("FC6");
   });
 
   it("derives batting lines from events without residue", () => {
@@ -175,5 +181,34 @@ describe("scorebook helpers", () => {
     expect(runs.get(1)).toBe(2);
     expect(runs.get(5)).toBe(3);
     expect(sumStoredRunsByInning({ "1": 2, "2": 0, "5": 3 })).toBe(5);
+  });
+
+  it("counts outs automatically for double plays", () => {
+    expect(
+      getOutsAdded({
+        eventCode: "dp",
+        runnerAdvances: [{ runnerId: "player-1", startBase: "B", endBase: "O" }]
+      })
+    ).toBe(2);
+  });
+
+  it("counts called strikeouts as strikeouts and outs", () => {
+    expect(
+      getOutsAdded({
+        eventCode: "k_looking",
+        runnerAdvances: []
+      })
+    ).toBe(1);
+  });
+
+  it("counts manually annotated runs even without runner advances to home", () => {
+    const event = {
+      ...baseEvent,
+      runnerAdvances: [{ runnerId: "player-1", startBase: "B", endBase: "1" as const }],
+      runsScoredCount: 2
+    };
+
+    expect(deriveRunsByInning([event]).get(1)).toBe(2);
+    expect(getComuRuns([event])).toBe(2);
   });
 });
