@@ -69,6 +69,15 @@ function parseOptionalNumber(value: FormDataEntryValue | null) {
   return Number.isNaN(parsed) ? null : parsed;
 }
 
+function parseOptionalDate(value: FormDataEntryValue | null) {
+  if (value === null) {
+    return null;
+  }
+
+  const raw = String(value).trim();
+  return raw || null;
+}
+
 async function ensureStorageBucket() {
   if (storageReady) {
     return storageReady;
@@ -742,6 +751,141 @@ export async function saveGameAction(formData: FormData) {
 
   await revalidateAll(locale);
   maybeRedirect(redirectTo);
+}
+
+export async function saveSeasonAction(formData: FormData) {
+  const locale = (formData.get("locale") as Locale) || "es";
+  const redirectTo = getRedirectTo(formData);
+  await ensureAdmin(locale);
+
+  if (!isSupabaseConfigured()) {
+    await revalidateAll(locale);
+    return;
+  }
+
+  const client = createAdminClient();
+  if (!client) {
+    return;
+  }
+
+  const existingId = String(formData.get("id") || "").trim();
+  const year = Number(formData.get("year") || 0);
+  const label = String(formData.get("label") || "").trim();
+  const isActive = parseBoolean(formData.get("isActive"));
+  const startsAt = parseOptionalDate(formData.get("startsAt"));
+  const endsAt = parseOptionalDate(formData.get("endsAt"));
+
+  if (!year || !label) {
+    maybeRedirect(withErrorParam(redirectTo, "invalid-season-input"));
+    return;
+  }
+
+  const id = existingId || `season-${year}-${slugify(label)}`;
+
+  if (isActive) {
+    await client.from("seasons").update({ is_active: false }).neq("id", id);
+  }
+
+  const payload = {
+    id,
+    year,
+    label,
+    is_active: isActive,
+    starts_at: startsAt,
+    ends_at: endsAt
+  };
+
+  const query = existingId
+    ? client.from("seasons").update(payload).eq("id", existingId)
+    : client.from("seasons").insert(payload);
+
+  const { error } = await query;
+  if (error) {
+    maybeRedirect(withErrorParam(redirectTo, "season-save-failed"));
+    return;
+  }
+
+  if (!isActive) {
+    const { data: activeRows } = await client
+      .from("seasons")
+      .select("id")
+      .eq("is_active", true)
+      .limit(1);
+
+    if (!activeRows?.length) {
+      await client.from("seasons").update({ is_active: true }).eq("id", id);
+    }
+  }
+
+  await revalidateAll(locale);
+  maybeRedirect(withNoticeParam(redirectTo, existingId ? "season-updated" : "season-created"));
+}
+
+export async function deleteSeasonAction(formData: FormData) {
+  const locale = (formData.get("locale") as Locale) || "es";
+  const redirectTo = getRedirectTo(formData);
+  await ensureAdmin(locale);
+
+  if (!isSupabaseConfigured()) {
+    await revalidateAll(locale);
+    return;
+  }
+
+  const client = createAdminClient();
+  if (!client) {
+    return;
+  }
+
+  const id = String(formData.get("id") || "").trim();
+  if (!id) {
+    maybeRedirect(withErrorParam(redirectTo, "season-not-found"));
+    return;
+  }
+
+  const { data: seasons } = await client.from("seasons").select("id, is_active").order("year");
+  const rows = (seasons ?? []) as Array<{ id: string; is_active: boolean }>;
+  const target = rows.find((season) => season.id === id);
+
+  if (!target) {
+    maybeRedirect(withErrorParam(redirectTo, "season-not-found"));
+    return;
+  }
+
+  if (rows.length <= 1) {
+    maybeRedirect(withErrorParam(redirectTo, "season-delete-last"));
+    return;
+  }
+
+  const dependencyChecks = await Promise.all([
+    client.from("player_assignments").select("player_id", { head: true, count: "exact" }).eq("season_id", id),
+    client.from("player_season_stats").select("player_id", { head: true, count: "exact" }).eq("season_id", id),
+    client.from("team_season_stats").select("season_id", { head: true, count: "exact" }).eq("season_id", id),
+    client.from("games").select("id", { head: true, count: "exact" }).eq("season_id", id),
+    client.from("game_batting_events").select("id", { head: true, count: "exact" }).eq("season_id", id),
+    client.from("posts").select("id", { head: true, count: "exact" }).eq("season_id", id)
+  ]);
+
+  const hasDependencies = dependencyChecks.some((result) => (result.count ?? 0) > 0);
+  if (hasDependencies) {
+    maybeRedirect(withErrorParam(redirectTo, "season-delete-blocked"));
+    return;
+  }
+
+  const { error } = await client.from("seasons").delete().eq("id", id);
+  if (error) {
+    maybeRedirect(withErrorParam(redirectTo, "season-delete-failed"));
+    return;
+  }
+
+  if (target.is_active) {
+    const nextSeason = rows.find((season) => season.id !== id);
+    if (nextSeason) {
+      await client.from("seasons").update({ is_active: true }).eq("id", nextSeason.id);
+    }
+  }
+
+  await revalidateAll(locale);
+  maybeRedirect(withNoticeParam(redirectTo, "season-deleted"));
 }
 
 export async function saveGameBattingEventAction(formData: FormData) {
