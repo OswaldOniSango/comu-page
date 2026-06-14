@@ -16,6 +16,8 @@ type Props = {
   };
   common?: {
     club?: string;
+    menu?: string;
+    open?: string;
   };
 };
 
@@ -70,25 +72,38 @@ export function SiteHeader({ locale, nav, common }: Props) {
             <LocaleSwitcher currentLocale={locale} />
           </div>
         </div>
-        <div className="mt-4 lg:hidden">
-          <nav className="flex flex-wrap gap-2">
+        <details className="mt-4 lg:hidden">
+          <summary className="flex cursor-pointer list-none items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-left [&::-webkit-details-marker]:hidden">
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-gold">
+                {common?.menu ?? "Menu"}
+              </p>
+              <p className="mt-1 text-xs uppercase tracking-[0.22em] text-white/50">
+                {items.length + 1} links
+              </p>
+            </div>
+            <span className="rounded-full border border-white/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-white/60">
+              {common?.open ?? "Open"}
+            </span>
+          </summary>
+          <nav className="mt-3 grid gap-2 rounded-2xl border border-white/10 bg-black/35 p-3">
             {items.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
-                className="rounded-full border border-white/10 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-white/70"
+                className="rounded-2xl border border-white/10 px-4 py-3 text-xs font-semibold uppercase tracking-[0.2em] text-white/75"
               >
                 {item.label}
               </Link>
             ))}
             <Link
               href={`/${locale}/admin`}
-              className="rounded-full border border-gold/40 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-gold"
+              className="rounded-2xl border border-gold/40 px-4 py-3 text-xs font-semibold uppercase tracking-[0.2em] text-gold"
             >
               {nav.admin}
             </Link>
           </nav>
-        </div>
+        </details>
       </div>
     </header>
   );

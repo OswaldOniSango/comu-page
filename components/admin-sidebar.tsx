@@ -14,6 +14,7 @@ type Props = {
     users?: string;
     settings: string;
     controlRoom?: string;
+    open?: string;
   };
 };
 
@@ -32,25 +33,30 @@ export function AdminSidebar({ locale, labels }: Props) {
   return (
     <>
       <div className="panel p-4 lg:hidden">
-        <div className="flex items-center justify-between gap-3">
-          <p className="eyebrow">{labels.controlRoom ?? "Control room"}</p>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/40">
-            Admin
-          </p>
-        </div>
-        <div className="mt-4">
-          <div className="flex flex-wrap gap-2">
+        <details>
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
+            <div>
+              <p className="eyebrow">{labels.controlRoom ?? "Control room"}</p>
+              <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/40">
+                Admin
+              </p>
+            </div>
+            <span className="rounded-full border border-white/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/60">
+              {labels.open ?? "Open"}
+            </span>
+          </summary>
+          <div className="mt-4 grid gap-2">
             {items.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
-                className="rounded-full border border-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white/70 hover:border-gold/20 hover:bg-gold/10 hover:text-white"
+                className="rounded-2xl border border-white/10 px-4 py-3 text-xs font-semibold uppercase tracking-[0.18em] text-white/70 hover:border-gold/20 hover:bg-gold/10 hover:text-white"
               >
                 {item.label}
               </Link>
             ))}
           </div>
-        </div>
+        </details>
       </div>
 
       <aside className="panel sticky top-24 hidden h-fit p-5 lg:block">
