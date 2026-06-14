@@ -17,9 +17,10 @@ import {
   requiresFieldersForEvent,
   sumStoredRunsByInning
 } from "@/lib/scorebook";
-import { requireAdminSession } from "@/lib/session";
+import { requireAdminSession, requireSuperAdminSession } from "@/lib/session";
 import { createAdminClient, isSupabaseConfigured } from "@/lib/supabase";
 import type {
+  AdminRole,
   BaseDestination,
   BaseState,
   Locale,
@@ -44,6 +45,10 @@ function slugify(input: string) {
 
 async function ensureAdmin(locale: Locale) {
   await requireAdminSession(locale);
+}
+
+async function ensureSuperAdmin(locale: Locale) {
+  return requireSuperAdminSession(locale);
 }
 
 function parseBoolean(value: FormDataEntryValue | null) {
@@ -179,6 +184,17 @@ function withErrorParam(redirectTo: string | null, error: string) {
   const [path, queryString] = redirectTo.split("?");
   const params = new URLSearchParams(queryString || "");
   params.set("error", error);
+  return `${path}?${params.toString()}`;
+}
+
+function withNoticeParam(redirectTo: string | null, notice: string) {
+  if (!redirectTo) {
+    return null;
+  }
+
+  const [path, queryString] = redirectTo.split("?");
+  const params = new URLSearchParams(queryString || "");
+  params.set("notice", notice);
   return `${path}?${params.toString()}`;
 }
 
@@ -1268,6 +1284,262 @@ export async function savePlayerStatsAction(formData: FormData) {
 
   await revalidateAll(locale);
   maybeRedirect(redirectTo);
+}
+
+function parseAdminRole(value: FormDataEntryValue | null): AdminRole {
+  return value === "superadmin" ? "superadmin" : "admin";
+}
+
+async function getAdminUsersForSafetyChecks(
+  client: NonNullable<ReturnType<typeof createAdminClient>>
+) {
+  const { data } = await client.from("admins").select("user_id, email, role, is_active");
+  return (data ?? []) as Array<{
+    user_id: string;
+    email: string;
+    role: AdminRole;
+    is_active: boolean;
+  }>;
+}
+
+export async function changeOwnAdminPasswordAction(formData: FormData) {
+  const locale = (formData.get("locale") as Locale) || "es";
+  const redirectTo = getRedirectTo(formData);
+  const session = await requireAdminSession(locale);
+
+  if (!isSupabaseConfigured()) {
+    maybeRedirect(withErrorParam(redirectTo, "setup"));
+    return;
+  }
+
+  const client = createAdminClient();
+  if (!client) {
+    maybeRedirect(withErrorParam(redirectTo, "setup"));
+    return;
+  }
+
+  const password = String(formData.get("password") || "");
+  const confirmPassword = String(formData.get("confirmPassword") || "");
+
+  if (password.length < 8) {
+    maybeRedirect(withErrorParam(redirectTo, "password-too-short"));
+    return;
+  }
+
+  if (password !== confirmPassword) {
+    maybeRedirect(withErrorParam(redirectTo, "password-mismatch"));
+    return;
+  }
+
+  const { error } = await client.auth.admin.updateUserById(session.userId, { password });
+
+  if (error) {
+    maybeRedirect(withErrorParam(redirectTo, "password-update-failed"));
+    return;
+  }
+
+  await revalidateAll(locale);
+  maybeRedirect(withNoticeParam(redirectTo, "password-updated"));
+}
+
+export async function createAdminUserAction(formData: FormData) {
+  const locale = (formData.get("locale") as Locale) || "es";
+  const redirectTo = getRedirectTo(formData);
+  await ensureSuperAdmin(locale);
+
+  if (!isSupabaseConfigured()) {
+    maybeRedirect(withErrorParam(redirectTo, "setup"));
+    return;
+  }
+
+  const client = createAdminClient();
+  if (!client) {
+    maybeRedirect(withErrorParam(redirectTo, "setup"));
+    return;
+  }
+
+  const email = String(formData.get("email") || "").trim().toLowerCase();
+  const password = String(formData.get("password") || "");
+  const role = parseAdminRole(formData.get("role"));
+  const isActive = parseBoolean(formData.get("isActive"));
+
+  if (!email || password.length < 8) {
+    maybeRedirect(withErrorParam(redirectTo, "invalid-user-input"));
+    return;
+  }
+
+  const { data: createdUser, error: createError } = await client.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true
+  });
+
+  if (createError || !createdUser.user) {
+    maybeRedirect(withErrorParam(redirectTo, "user-create-failed"));
+    return;
+  }
+
+  await client.from("admins").upsert(
+    {
+      user_id: createdUser.user.id,
+      email,
+      role,
+      is_active: isActive,
+      updated_at: new Date().toISOString()
+    },
+    { onConflict: "user_id" }
+  );
+
+  await revalidateAll(locale);
+  maybeRedirect(withNoticeParam(redirectTo, "user-created"));
+}
+
+export async function updateAdminUserAction(formData: FormData) {
+  const locale = (formData.get("locale") as Locale) || "es";
+  const redirectTo = getRedirectTo(formData);
+  const session = await ensureSuperAdmin(locale);
+
+  if (!isSupabaseConfigured()) {
+    maybeRedirect(withErrorParam(redirectTo, "setup"));
+    return;
+  }
+
+  const client = createAdminClient();
+  if (!client) {
+    maybeRedirect(withErrorParam(redirectTo, "setup"));
+    return;
+  }
+
+  const userId = String(formData.get("userId") || "");
+  const email = String(formData.get("email") || "").trim().toLowerCase();
+  const role = parseAdminRole(formData.get("role"));
+  const isActive = parseBoolean(formData.get("isActive"));
+  const password = String(formData.get("password") || "");
+
+  if (!userId || !email) {
+    maybeRedirect(withErrorParam(redirectTo, "invalid-user-input"));
+    return;
+  }
+
+  const adminUsers = await getAdminUsersForSafetyChecks(client);
+  const target = adminUsers.find((admin) => admin.user_id === userId);
+
+  if (!target) {
+    maybeRedirect(withErrorParam(redirectTo, "user-not-found"));
+    return;
+  }
+
+  const activeSuperadmins = adminUsers.filter(
+    (admin) => admin.role === "superadmin" && admin.is_active
+  ).length;
+  const removingLastSuperadmin =
+    target.role === "superadmin" &&
+    target.is_active &&
+    activeSuperadmins <= 1 &&
+    (role !== "superadmin" || !isActive);
+
+  if (removingLastSuperadmin) {
+    maybeRedirect(withErrorParam(redirectTo, "last-superadmin"));
+    return;
+  }
+
+  const authUpdate: { email?: string; password?: string; email_confirm?: boolean } = {};
+
+  if (email !== target.email) {
+    authUpdate.email = email;
+    authUpdate.email_confirm = true;
+  }
+
+  if (password) {
+    if (password.length < 8) {
+      maybeRedirect(withErrorParam(redirectTo, "password-too-short"));
+      return;
+    }
+    authUpdate.password = password;
+  }
+
+  if (Object.keys(authUpdate).length) {
+    const { error } = await client.auth.admin.updateUserById(userId, authUpdate);
+
+    if (error) {
+      maybeRedirect(withErrorParam(redirectTo, "user-update-failed"));
+      return;
+    }
+  }
+
+  await client
+    .from("admins")
+    .update({
+      email,
+      role,
+      is_active: isActive,
+      updated_at: new Date().toISOString()
+    })
+    .eq("user_id", userId);
+
+  await revalidateAll(locale);
+  maybeRedirect(
+    withNoticeParam(
+      redirectTo,
+      userId === session.userId ? "current-user-updated" : "user-updated"
+    )
+  );
+}
+
+export async function deleteAdminUserAction(formData: FormData) {
+  const locale = (formData.get("locale") as Locale) || "es";
+  const redirectTo = getRedirectTo(formData);
+  const session = await ensureSuperAdmin(locale);
+
+  if (!isSupabaseConfigured()) {
+    maybeRedirect(withErrorParam(redirectTo, "setup"));
+    return;
+  }
+
+  const client = createAdminClient();
+  if (!client) {
+    maybeRedirect(withErrorParam(redirectTo, "setup"));
+    return;
+  }
+
+  const userId = String(formData.get("userId") || "");
+  if (!userId) {
+    maybeRedirect(withErrorParam(redirectTo, "user-not-found"));
+    return;
+  }
+
+  if (userId === session.userId) {
+    maybeRedirect(withErrorParam(redirectTo, "self-delete"));
+    return;
+  }
+
+  const adminUsers = await getAdminUsersForSafetyChecks(client);
+  const target = adminUsers.find((admin) => admin.user_id === userId);
+
+  if (!target) {
+    maybeRedirect(withErrorParam(redirectTo, "user-not-found"));
+    return;
+  }
+
+  const activeSuperadmins = adminUsers.filter(
+    (admin) => admin.role === "superadmin" && admin.is_active
+  ).length;
+
+  if (target.role === "superadmin" && target.is_active && activeSuperadmins <= 1) {
+    maybeRedirect(withErrorParam(redirectTo, "last-superadmin"));
+    return;
+  }
+
+  const { error: authError } = await client.auth.admin.deleteUser(userId);
+  if (authError) {
+    maybeRedirect(withErrorParam(redirectTo, "user-delete-failed"));
+    return;
+  }
+
+  await client.from("admins").delete().eq("user_id", userId);
+
+  await revalidateAll(locale);
+  maybeRedirect(withNoticeParam(redirectTo, "user-deleted"));
 }
 
 export async function saveSiteSettingsAction(formData: FormData) {

@@ -1,4 +1,5 @@
 import { AdminSidebar } from "@/components/admin-sidebar";
+import { getAdminSession } from "@/lib/session";
 import type { Locale } from "@/lib/types";
 
 type Props = {
@@ -10,16 +11,23 @@ type Props = {
     posts: string;
     galleries: string;
     stats: string;
+    users?: string;
     settings: string;
     signOut?: string;
   };
   children: React.ReactNode;
 };
 
-export function AdminShell({ locale, labels, children }: Props) {
+export async function AdminShell({ locale, labels, children }: Props) {
+  const session = await getAdminSession();
+  const sidebarLabels = {
+    ...labels,
+    users: session?.role === "superadmin" ? labels.users : undefined
+  };
+
   return (
     <div className="page-shell admin-grid">
-      <AdminSidebar locale={locale} labels={labels} />
+      <AdminSidebar locale={locale} labels={sidebarLabels} />
       <div className="min-w-0 space-y-4 lg:space-y-6">
         <div className="flex justify-start sm:justify-end">
           <form action={`/api/auth/logout?locale=${locale}`} method="post">

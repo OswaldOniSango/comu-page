@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 
 import { SESSION_COOKIE } from "@/lib/constants";
 import { createAdminClient, isSupabaseConfigured } from "@/lib/supabase";
+import type { AdminRole } from "@/lib/types";
 
 function getSecret() {
   return process.env.SESSION_SECRET || "change-me";
@@ -13,6 +14,12 @@ type SessionPayload = {
   userId: string;
   email: string;
   ts: number;
+};
+
+export type AdminSession = {
+  userId: string;
+  email: string;
+  role: AdminRole;
 };
 
 export function createSessionToken(payload: Omit<SessionPayload, "ts">) {
@@ -71,7 +78,7 @@ export async function getAdminSession() {
 
   const { data, error } = await client
     .from("admins")
-    .select("user_id, email, is_active")
+    .select("user_id, email, role, is_active")
     .eq("user_id", session.userId)
     .eq("is_active", true)
     .maybeSingle();
@@ -80,7 +87,11 @@ export async function getAdminSession() {
     return null;
   }
 
-  return session;
+  return {
+    userId: session.userId,
+    email: data.email,
+    role: data.role === "superadmin" ? "superadmin" : "admin"
+  } satisfies AdminSession;
 }
 
 export async function requireAdminSession(locale: string) {
@@ -88,6 +99,16 @@ export async function requireAdminSession(locale: string) {
 
   if (!session) {
     redirect(`/${locale}/admin/login`);
+  }
+
+  return session;
+}
+
+export async function requireSuperAdminSession(locale: string) {
+  const session = await requireAdminSession(locale);
+
+  if (session.role !== "superadmin") {
+    redirect(`/${locale}/admin`);
   }
 
   return session;

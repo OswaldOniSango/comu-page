@@ -55,9 +55,29 @@ set
 create table if not exists admins (
   user_id uuid primary key,
   email text not null unique,
+  role text not null default 'admin' check (role in ('admin', 'superadmin')),
   is_active boolean not null default true,
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
 );
+
+alter table if exists admins
+  add column if not exists role text not null default 'admin';
+
+alter table if exists admins
+  add column if not exists updated_at timestamptz not null default now();
+
+do $$
+begin
+  begin
+    alter table admins drop constraint if exists admins_role_check;
+  exception
+    when undefined_object then null;
+  end;
+end $$;
+
+alter table if exists admins
+  add constraint admins_role_check check (role in ('admin', 'superadmin'));
 
 create table if not exists players (
   id uuid primary key default gen_random_uuid(),
