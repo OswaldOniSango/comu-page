@@ -190,9 +190,9 @@ export default async function AdminGamesPage({
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="min-w-0">
             <h1 className="font-[var(--font-display)] text-3xl uppercase tracking-[0.08em] text-white sm:text-4xl lg:text-5xl">
-              Games manager
+              {dictionary.admin.gamesTitle}
             </h1>
-            <p className="mt-3 text-sm text-white/65">Edit and delete from a compact schedule list.</p>
+            <p className="mt-3 text-sm text-white/65">{dictionary.admin.gamesSubtitle}</p>
           </div>
           <div className="flex w-full flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between lg:w-auto lg:justify-end">
             <SquadSwitch
@@ -204,7 +204,7 @@ export default async function AdminGamesPage({
               href={`${basePath}?squad=${selectedSquad.id}&create=1`}
               className="inline-flex w-full items-center justify-center rounded-full bg-gold px-5 py-3 text-xs font-semibold uppercase tracking-[0.24em] text-ink sm:w-auto"
             >
-              New game
+              {dictionary.admin.newGame}
             </Link>
           </div>
         </div>
@@ -235,7 +235,7 @@ export default async function AdminGamesPage({
                   href={`${basePath}?squad=${selectedSquad.id}&edit=${game.id}`}
                   className="inline-flex items-center justify-center rounded-full border border-gold/30 px-4 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-gold"
                 >
-                  Edit
+                  {dictionary.admin.edit}
                 </Link>
                 <form action={deleteGameAction}>
                   <input type="hidden" name="locale" value={locale} />
@@ -245,7 +245,7 @@ export default async function AdminGamesPage({
                     type="submit"
                     className="inline-flex items-center justify-center rounded-full border border-red-400/30 px-4 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-red-200"
                   >
-                    Delete
+                    {dictionary.admin.delete}
                   </button>
                 </form>
               </div>
@@ -255,13 +255,17 @@ export default async function AdminGamesPage({
       </div>
 
       {(editingGame || isCreating) && (
-        <AdminModal title={editingGame ? `Edit ${editingGame.opponent}` : "New game"} closeHref={listPath}>
+        <AdminModal
+          title={editingGame ? `${dictionary.admin.edit} ${editingGame.opponent}` : dictionary.admin.newGame}
+          closeHref={listPath}
+          closeLabel={dictionary.admin.close}
+        >
           <GameForm
             locale={locale}
             redirectTo={listPath}
             seasonId={data.activeSeason.id}
             squadId={selectedSquad.id}
-            submitLabel={editingGame ? "Update game" : "Create game"}
+            submitLabel={editingGame ? dictionary.admin.updateGame : dictionary.admin.createGame}
             game={editingGame}
           />
         </AdminModal>

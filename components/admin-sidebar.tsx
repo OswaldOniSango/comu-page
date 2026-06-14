@@ -11,7 +11,9 @@ type Props = {
     posts: string;
     galleries: string;
     stats: string;
+    users?: string;
     settings: string;
+    controlRoom?: string;
   };
 };
 
@@ -23,6 +25,7 @@ export function AdminSidebar({ locale, labels }: Props) {
     { href: `/${locale}/admin/posts`, label: labels.posts },
     { href: `/${locale}/admin/galleries`, label: labels.galleries },
     { href: `/${locale}/admin/stats`, label: labels.stats },
+    ...(labels.users ? [{ href: `/${locale}/admin/users`, label: labels.users }] : []),
     { href: `/${locale}/admin/settings`, label: labels.settings }
   ];
 
@@ -30,7 +33,7 @@ export function AdminSidebar({ locale, labels }: Props) {
     <>
       <div className="panel p-4 lg:hidden">
         <div className="flex items-center justify-between gap-3">
-          <p className="eyebrow">Control room</p>
+          <p className="eyebrow">{labels.controlRoom ?? "Control room"}</p>
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/40">
             Admin
           </p>
@@ -51,7 +54,7 @@ export function AdminSidebar({ locale, labels }: Props) {
       </div>
 
       <aside className="panel sticky top-24 hidden h-fit p-5 lg:block">
-        <p className="eyebrow">Control room</p>
+        <p className="eyebrow">{labels.controlRoom ?? "Control room"}</p>
         <div className="mt-5 space-y-2">
           {items.map((item) => (
             <Link

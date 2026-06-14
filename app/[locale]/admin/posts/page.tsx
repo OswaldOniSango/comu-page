@@ -166,15 +166,15 @@ export default async function AdminPostsPage({
         <div className="flex items-start justify-between gap-4">
           <div>
             <h1 className="font-[var(--font-display)] text-5xl uppercase tracking-[0.08em] text-white">
-              Editorial feed
+              {dictionary.admin.postsTitle}
             </h1>
-            <p className="mt-3 text-sm text-white/65">Work from a clean list instead of inline forms.</p>
+            <p className="mt-3 text-sm text-white/65">{dictionary.admin.postsSubtitle}</p>
           </div>
           <Link
             href={`${basePath}?create=1`}
             className="rounded-full bg-gold px-5 py-3 text-xs font-semibold uppercase tracking-[0.24em] text-ink"
           >
-            New post
+            {dictionary.admin.newPost}
           </Link>
         </div>
       </div>
@@ -194,7 +194,7 @@ export default async function AdminPostsPage({
                   href={`${basePath}?edit=${post.id}`}
                   className="rounded-full border border-gold/30 px-4 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-gold"
                 >
-                  Edit
+                  {dictionary.admin.edit}
                 </Link>
                 <form action={deletePostAction}>
                   <input type="hidden" name="locale" value={locale} />
@@ -204,7 +204,7 @@ export default async function AdminPostsPage({
                     type="submit"
                     className="rounded-full border border-red-400/30 px-4 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-red-200"
                   >
-                    Delete
+                    {dictionary.admin.delete}
                   </button>
                 </form>
               </div>
@@ -214,11 +214,15 @@ export default async function AdminPostsPage({
       </div>
 
       {(editingPost || isCreating) && (
-        <AdminModal title={editingPost ? `Edit ${editingPost.title.es}` : "New post"} closeHref={basePath}>
+        <AdminModal
+          title={editingPost ? `${dictionary.admin.edit} ${editingPost.title.es}` : dictionary.admin.newPost}
+          closeHref={basePath}
+          closeLabel={dictionary.admin.close}
+        >
           <PostForm
             locale={locale}
             redirectTo={basePath}
-            submitLabel={editingPost ? "Update post" : "Create post"}
+            submitLabel={editingPost ? dictionary.admin.updatePost : dictionary.admin.createPost}
             post={editingPost}
           />
         </AdminModal>

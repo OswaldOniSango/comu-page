@@ -60,7 +60,7 @@ export default async function PlayerPage({
               </p>
             </div>
             <div className="panel p-5">
-              <p className="text-xs uppercase tracking-[0.3em] text-white/45">Hometown</p>
+              <p className="text-xs uppercase tracking-[0.3em] text-white/45">{dictionary.roster.hometown}</p>
               <p className="mt-3 font-[var(--font-display)] text-3xl uppercase tracking-[0.06em] text-white sm:text-4xl sm:tracking-[0.08em]">
                 {player.hometown}
               </p>
