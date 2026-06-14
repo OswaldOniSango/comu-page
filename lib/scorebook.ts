@@ -39,18 +39,59 @@ type MutableBattingAccumulator = {
 export type DerivedPlayerBattingStats = Record<string, DerivedPlayerBattingLine>;
 export type GameBattingBoxScore = Record<string, GameBattingBoxLine>;
 
+export const SCOREBOOK_EVENT_OPTIONS: Array<{
+  value: ScorebookEventCode;
+  label: string;
+  notation: string;
+  requiresFielders?: boolean;
+}> = [
+  { value: "single", label: "Sencillo", notation: "1B" },
+  { value: "double", label: "Doble", notation: "2B" },
+  { value: "triple", label: "Triple", notation: "3B" },
+  { value: "home_run", label: "Jonrón", notation: "HR" },
+  { value: "bb", label: "Base por bolas", notation: "BB" },
+  { value: "hbp", label: "Golpeado", notation: "HBP" },
+  { value: "k", label: "Ponche", notation: "K" },
+  { value: "k_looking", label: "Ponche cantado", notation: "ꓘ" },
+  { value: "go", label: "Out en el cuadro", notation: "", requiresFielders: true },
+  { value: "fo", label: "Fly out", notation: "", requiresFielders: true },
+  { value: "lo", label: "Line out", notation: "", requiresFielders: true },
+  { value: "e", label: "Error", notation: "", requiresFielders: true },
+  { value: "fc", label: "Fielder's Choice", notation: "", requiresFielders: true },
+  { value: "dp", label: "Doble play", notation: "", requiresFielders: true },
+  { value: "sf", label: "Sacrifice fly", notation: "", requiresFielders: true },
+  { value: "sh", label: "Sacrifice bunt", notation: "", requiresFielders: true }
+];
+
+export function requiresFieldersForEvent(eventCode: ScorebookEventCode) {
+  return Boolean(SCOREBOOK_EVENT_OPTIONS.find((option) => option.value === eventCode)?.requiresFielders);
+}
+
+export function extractHitZoneFromInput(input?: string | null) {
+  const match = (input || "").trim().toUpperCase().match(/([789])$/);
+  return match?.[1] ?? null;
+}
+
+function normalizePrefixedNotation(prefix: string, input: string) {
+  const cleaned = input.replace(/\s+/g, "").toUpperCase();
+  return cleaned.startsWith(prefix) ? cleaned : `${prefix}${cleaned}`;
+}
+
 export function buildScoreNotation(
   eventCode: ScorebookEventCode,
   hitZone?: string | null,
   fielderPath?: string | null
 ) {
+  const pathOrZone = (fielderPath || hitZone || "").trim();
+  const hitZoneFromInput = extractHitZoneFromInput(pathOrZone || hitZone || "");
+
   switch (eventCode) {
     case "single":
-      return `H${hitZone || "?"}`;
+      return `H${hitZoneFromInput || "?"}`;
     case "double":
-      return `2B${hitZone || ""}`.trim();
+      return `2B${hitZoneFromInput || ""}`.trim();
     case "triple":
-      return `3B${hitZone || ""}`.trim();
+      return `3B${hitZoneFromInput || ""}`.trim();
     case "home_run":
       return "HR";
     case "bb":
@@ -59,6 +100,8 @@ export function buildScoreNotation(
       return "HBP";
     case "k":
       return "K";
+    case "k_looking":
+      return "ꓘ";
     case "go":
       return fielderPath || "GO";
     case "fo":
@@ -66,15 +109,15 @@ export function buildScoreNotation(
     case "lo":
       return fielderPath || "LO";
     case "e":
-      return fielderPath ? `E${fielderPath}` : "E";
+      return pathOrZone ? normalizePrefixedNotation("E", pathOrZone) : "E";
     case "fc":
-      return fielderPath ? `FC ${fielderPath}` : "FC";
+      return pathOrZone ? normalizePrefixedNotation("FC", pathOrZone) : "FC";
     case "sf":
-      return fielderPath ? `SF${fielderPath}` : "SF";
+      return pathOrZone ? normalizePrefixedNotation("SF", pathOrZone) : "SF";
     case "sh":
-      return fielderPath ? `SH${fielderPath}` : "SH";
+      return pathOrZone ? normalizePrefixedNotation("SH", pathOrZone) : "SH";
     case "dp":
-      return fielderPath || "DP";
+      return pathOrZone || "DP";
     default:
       return "";
   }
@@ -92,6 +135,7 @@ export function deriveEventFamily(eventCode: ScorebookEventCode): ScorebookEvent
     case "hbp":
       return "hbp";
     case "k":
+    case "k_looking":
       return "strikeout";
     case "e":
       return "error";
@@ -121,8 +165,25 @@ export function cleanRunnerAdvances(advances: RunnerAdvance[]) {
   return advances.filter((advance) => advance.runnerId && advance.endBase) as RunnerAdvance[];
 }
 
-export function getOutsAdded(event: Pick<GameBattingEvent, "runnerAdvances">) {
-  return event.runnerAdvances.filter((advance) => advance.endBase === "O").length;
+export function getOutsAdded(
+  event: Pick<GameBattingEvent, "eventCode" | "runnerAdvances">
+) {
+  const recordedOuts = event.runnerAdvances.filter((advance) => advance.endBase === "O").length;
+
+  switch (event.eventCode) {
+    case "dp":
+      return Math.max(2, recordedOuts);
+    case "k":
+    case "k_looking":
+    case "go":
+    case "fo":
+    case "lo":
+    case "sf":
+    case "sh":
+      return Math.max(1, recordedOuts);
+    default:
+      return recordedOuts;
+  }
 }
 
 export function getBaseStateAfterEvent(event: Pick<GameBattingEvent, "runnerAdvances">): BaseState {
@@ -163,6 +224,7 @@ export function getDefaultDestinationForEvent(eventCode: ScorebookEventCode): Ba
     case "fo":
     case "lo":
     case "k":
+    case "k_looking":
     case "sf":
     case "sh":
     case "dp":
@@ -261,7 +323,7 @@ export function deriveGameBattingBoxScore(events: GameBattingEvent[]): GameBatti
       row.walks += 1;
     }
 
-    if (event.eventCode === "k") {
+    if (event.eventCode === "k" || event.eventCode === "k_looking") {
       row.strikeouts += 1;
     }
 
@@ -325,7 +387,7 @@ export function deriveRunsByInning(events: GameBattingEvent[]) {
   const runs = new Map<number, number>();
 
   for (const event of events) {
-    const scored = event.runnerAdvances.filter((advance) => advance.endBase === "H").length;
+    const scored = Number(event.runsScoredCount || 0);
     runs.set(event.inningNumber, (runs.get(event.inningNumber) ?? 0) + scored);
   }
 
@@ -435,7 +497,7 @@ export function derivePlayerBattingStats(events: GameBattingEvent[]): DerivedPla
 }
 
 export function getComuRuns(events: GameBattingEvent[]) {
-  return events.reduce((total, event) => total + event.runnerAdvances.filter((advance) => advance.endBase === "H").length, 0);
+  return events.reduce((total, event) => total + Number(event.runsScoredCount || 0), 0);
 }
 
 export function getOpponentRuns(lines: OpponentInningLine[]) {

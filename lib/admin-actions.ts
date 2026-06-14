@@ -10,8 +10,11 @@ import {
   cleanRunnerAdvances,
   deriveEventFamily,
   derivePlayerBattingStats,
+  extractHitZoneFromInput,
   getComuRuns,
   getOpponentRuns,
+  getOutsAdded,
+  requiresFieldersForEvent,
   sumStoredRunsByInning
 } from "@/lib/scorebook";
 import { requireAdminSession } from "@/lib/session";
@@ -147,6 +150,11 @@ function getRedirectTo(formData: FormData) {
   return value ? String(value) : null;
 }
 
+function getErrorRedirectTo(formData: FormData) {
+  const value = formData.get("errorRedirectTo");
+  return value ? String(value) : null;
+}
+
 async function revalidateAll(locale: Locale) {
   revalidatePath(`/${locale}`);
   revalidatePath(`/${locale}/roster`);
@@ -161,6 +169,17 @@ function maybeRedirect(redirectTo: string | null) {
   if (redirectTo) {
     redirect(redirectTo);
   }
+}
+
+function withErrorParam(redirectTo: string | null, error: string) {
+  if (!redirectTo) {
+    return null;
+  }
+
+  const [path, queryString] = redirectTo.split("?");
+  const params = new URLSearchParams(queryString || "");
+  params.set("error", error);
+  return `${path}?${params.toString()}`;
 }
 
 type ScorebookEventRow = {
@@ -305,6 +324,33 @@ async function resequenceGameEvents(
 
   for (const [index, event] of (data ?? []).entries()) {
     await client.from("game_batting_events").update({ sequence_no: index + 1 }).eq("id", event.id);
+  }
+}
+
+async function recomputeGameEventOutsBefore(
+  client: NonNullable<ReturnType<typeof createAdminClient>>,
+  gameId: string
+) {
+  const { data } = await client
+    .from("game_batting_events")
+    .select("id, inning_number, event_code, runner_advances")
+    .eq("game_id", gameId)
+    .order("inning_number", { ascending: true })
+    .order("sequence_no", { ascending: true });
+
+  const outsByInning = new Map<number, number>();
+
+  for (const event of data ?? []) {
+    const inningNumber = Number(event.inning_number);
+    const outsBefore = outsByInning.get(inningNumber) ?? 0;
+    const outsAdded = getOutsAdded({
+      eventCode: event.event_code as ScorebookEventCode,
+      runnerAdvances: (event.runner_advances ?? []) as RunnerAdvance[]
+    });
+    const nextOuts = outsBefore + outsAdded >= 3 ? 0 : outsBefore + outsAdded;
+
+    await client.from("game_batting_events").update({ outs_before: outsBefore }).eq("id", event.id);
+    outsByInning.set(inningNumber, nextOuts);
   }
 }
 
@@ -526,6 +572,7 @@ async function recomputeScorebookDerivedState(
 export async function savePlayerAction(formData: FormData) {
   const locale = (formData.get("locale") as Locale) || "es";
   const redirectTo = getRedirectTo(formData);
+  const errorRedirectTo = getErrorRedirectTo(formData);
   await ensureAdmin(locale);
 
   if (!isSupabaseConfigured()) {
@@ -684,6 +731,7 @@ export async function saveGameAction(formData: FormData) {
 export async function saveGameBattingEventAction(formData: FormData) {
   const locale = (formData.get("locale") as Locale) || "es";
   const redirectTo = getRedirectTo(formData);
+  const errorRedirectTo = getErrorRedirectTo(formData);
   await ensureAdmin(locale);
 
   if (!isSupabaseConfigured()) {
@@ -702,14 +750,28 @@ export async function saveGameBattingEventAction(formData: FormData) {
   const squadId = String(formData.get("squadId") || "a1");
   const batterPlayerId = String(formData.get("batterPlayerId") || "");
   const eventCode = String(formData.get("eventCode") || "single") as ScorebookEventCode;
+  const fielderPath = String(formData.get("fielderPath") || "").trim() || null;
+  if (requiresFieldersForEvent(eventCode) && !fielderPath) {
+    revalidateScorebook(locale, gameId);
+    maybeRedirect(withErrorParam(errorRedirectTo || redirectTo, "missing-fielder-path"));
+    return;
+  }
+
+  const hitZone =
+    eventCode === "single" || eventCode === "double" || eventCode === "triple"
+      ? extractHitZoneFromInput(fielderPath)
+      : null;
   const baseState = parseBaseState(formData);
   const runnerAdvances = parseRunnerAdvances(formData, batterPlayerId, baseState);
   const notation = buildScoreNotation(
     eventCode,
-    String(formData.get("hitZone") || "") || null,
-    String(formData.get("fielderPath") || "") || null
+    hitZone,
+    fielderPath
   );
-  const runsScoredCount = runnerAdvances.filter((advance) => advance.endBase === "H").length;
+  const runsScoredCount = Math.max(
+    Number(formData.get("runsScoredCount") || 0),
+    runnerAdvances.filter((advance) => advance.endBase === "H").length
+  );
   const payload = {
     game_id: gameId,
     season_id: seasonId,
@@ -718,9 +780,9 @@ export async function saveGameBattingEventAction(formData: FormData) {
     batter_player_id: batterPlayerId,
     event_family: deriveEventFamily(eventCode),
     event_code: eventCode,
-    hit_zone: String(formData.get("hitZone") || "") || null,
-    fielder_path: String(formData.get("fielderPath") || "") || null,
-    outs_before: Number(formData.get("outsBefore") || 0),
+    hit_zone: hitZone,
+    fielder_path: fielderPath,
+    outs_before: 0,
     bases_before: baseState,
     runner_advances: runnerAdvances,
     rbi_count: Number(formData.get("rbiCount") || 0),
@@ -744,6 +806,7 @@ export async function saveGameBattingEventAction(formData: FormData) {
   }
 
   await resequenceGameEvents(client, gameId);
+  await recomputeGameEventOutsBefore(client, gameId);
   await recomputeScorebookDerivedState(client, { gameId, seasonId, squadId });
   await revalidateAll(locale);
   revalidateScorebook(locale, gameId);
@@ -771,6 +834,7 @@ export async function deleteGameBattingEventAction(formData: FormData) {
 
   await client.from("game_batting_events").delete().eq("id", id);
   await resequenceGameEvents(client, gameId);
+  await recomputeGameEventOutsBefore(client, gameId);
   await recomputeScorebookDerivedState(client, { gameId, seasonId, squadId });
   await revalidateAll(locale);
   revalidateScorebook(locale, gameId);
