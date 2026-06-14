@@ -1,10 +1,9 @@
 import Link from "next/link";
 
+import { AdminGamesFilters } from "@/components/admin-games-filters";
 import { AdminModal } from "@/components/admin-modal";
 import { AdminShell } from "@/components/admin-shell";
 import { ImageUploadField } from "@/components/image-upload-field";
-import { SeasonSwitch } from "@/components/season-switch";
-import { SquadSwitch } from "@/components/squad-switch";
 import { getSiteData, resolveSelectedSeason, resolveSelectedSquad, sortPlayers } from "@/lib/content";
 import { deletePlayerAction, savePlayerAction } from "@/lib/admin-actions";
 import { getDictionary, isLocale } from "@/lib/i18n";
@@ -210,49 +209,46 @@ export default async function AdminPlayersPage({
   return (
     <AdminShell locale={locale} labels={dictionary.admin}>
       <div className="panel p-6">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h1 className="font-[var(--font-display)] text-5xl uppercase tracking-[0.08em] text-white">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="min-w-0">
+            <h1 className="font-[var(--font-display)] text-3xl uppercase tracking-[0.08em] text-white sm:text-4xl lg:text-5xl">
               {dictionary.admin.playersTitle}
             </h1>
-            <p className="mt-3 text-sm text-white/65">
-              {dictionary.admin.playersSubtitle}
-            </p>
+            <p className="mt-3 text-sm text-white/65">{dictionary.admin.playersSubtitle}</p>
           </div>
-          <SeasonSwitch
-            basePath={basePath}
-            seasons={data.seasons}
-            selectedSeasonId={selectedSeason.id}
-            extraParams={{ squad: selectedSquad.id }}
-          />
-          <SquadSwitch
-            basePath={basePath}
-            squads={data.squads}
-            selectedSquadId={selectedSquad.id}
-            extraParams={{ season: selectedSeason.id }}
-          />
-          <Link
-            href={`${basePath}?squad=${selectedSquad.id}&season=${selectedSeason.id}&create=1`}
-            className="rounded-full bg-gold px-5 py-3 text-xs font-semibold uppercase tracking-[0.24em] text-ink"
-          >
-            {dictionary.admin.newPlayer}
-              </Link>
+          <div className="flex w-full flex-col gap-3 lg:w-auto lg:items-end">
+            <AdminGamesFilters
+              basePath={basePath}
+              seasons={data.seasons}
+              squads={data.squads}
+              selectedSeasonId={selectedSeason.id}
+              selectedSquadId={selectedSquad.id}
+              seasonLabel={dictionary.common.season}
+              squadLabel={dictionary.admin.category}
+            />
+            <Link
+              href={`${basePath}?squad=${selectedSquad.id}&season=${selectedSeason.id}&create=1`}
+              className="inline-flex w-full items-center justify-center rounded-full bg-gold px-5 py-3 text-xs font-semibold uppercase tracking-[0.24em] text-ink sm:w-auto"
+            >
+              {dictionary.admin.newPlayer}
+            </Link>
+          </div>
         </div>
       </div>
 
       <div className="panel overflow-hidden">
         <div className="divide-y divide-white/10">
           {players.map((player) => (
-            <div key={player.id} className="flex items-center justify-between gap-4 px-5 py-4">
-              <div>
+            <div key={player.id} className="flex flex-col gap-4 px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
+              <div className="min-w-0">
                 <p className="text-xs uppercase tracking-[0.25em] text-white/45">
                   {player.assignment.squadId.toUpperCase()} • #{player.assignment.jerseyNumber} • {player.assignment.position} • {player.assignment.status}
                 </p>
-                <p className="mt-2 font-[var(--font-display)] text-3xl uppercase tracking-[0.08em] text-white">
+                <p className="mt-2 break-words font-[var(--font-display)] text-2xl uppercase tracking-[0.08em] text-white sm:text-3xl">
                   {player.firstName} {player.lastName}
                 </p>
               </div>
-              <div className="flex gap-3">
+              <div className="flex flex-wrap gap-3">
                 <Link
                   href={`${basePath}?squad=${selectedSquad.id}&season=${selectedSeason.id}&edit=${player.id}`}
                   className="rounded-full border border-gold/30 px-4 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-gold"
