@@ -16,8 +16,7 @@ export function SiteFooter({ locale, teamName }: Props) {
             {teamName}
           </p>
           <p className="mt-2 max-w-xl text-sm text-white/60">
-            Yellow and black baseball identity built for roster management, schedules, recaps and
-            visual storytelling.
+            © 2026 {teamName}. All rights reserved.
           </p>
         </div>
         <div className="flex items-end justify-start md:justify-end">
