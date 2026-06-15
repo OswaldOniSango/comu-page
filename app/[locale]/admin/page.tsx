@@ -1,5 +1,4 @@
 import { AdminShell } from "@/components/admin-shell";
-import { StatCard } from "@/components/stat-card";
 import { getSiteData, sortGames, sortPosts } from "@/lib/content";
 import { getDictionary, isLocale } from "@/lib/i18n";
 import { requireAdminSession } from "@/lib/session";
@@ -30,12 +29,6 @@ export default async function AdminDashboardPage({
           {dictionary.admin.dashboardSeedMode}
         </div>
       ) : null}
-      <div className="grid gap-4 md:grid-cols-4">
-        <StatCard label={dictionary.admin.players} value={`${data.players.length}`} accent />
-        <StatCard label={dictionary.admin.games} value={`${data.games.length}`} />
-        <StatCard label={dictionary.admin.posts} value={`${data.posts.length}`} />
-        <StatCard label={dictionary.admin.galleries} value={`${data.galleries.length}`} />
-      </div>
       <section className="grid gap-6 xl:grid-cols-2">
         <div className="panel p-6">
           <h2 className="font-[var(--font-display)] text-4xl uppercase tracking-[0.08em] text-white">
