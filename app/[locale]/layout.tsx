@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
-import { getSiteData } from "@/lib/content";
+import { getSiteSettings } from "@/lib/content";
 import { getDictionary, isLocale } from "@/lib/i18n";
 
 export async function generateStaticParams() {
@@ -43,7 +43,7 @@ export default async function LocaleLayout({
     notFound();
   }
 
-  const { settings } = await getSiteData();
+  const settings = await getSiteSettings();
   const dictionary = getDictionary(locale);
 
   return (
