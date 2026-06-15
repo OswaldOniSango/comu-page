@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 import { LocaleSwitcher } from "@/components/locale-switcher";
 import type { Locale } from "@/lib/types";
@@ -22,6 +25,8 @@ type Props = {
 };
 
 export function SiteHeader({ locale, nav, common }: Props) {
+  const pathname = usePathname() ?? "";
+  const isAdminRoute = pathname === `/${locale}/admin` || pathname.startsWith(`/${locale}/admin/`);
   const items = [
     { href: `/${locale}`, label: nav.home },
     { href: `/${locale}/roster`, label: nav.roster },
@@ -78,38 +83,40 @@ export function SiteHeader({ locale, nav, common }: Props) {
             <LocaleSwitcher currentLocale={locale} />
           </div>
         </div>
-        <details className="mt-4 lg:hidden">
-          <summary className="flex cursor-pointer list-none items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-left [&::-webkit-details-marker]:hidden">
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-gold">
-                {common?.menu ?? "Menu"}
-              </p>
-              <p className="mt-1 text-xs uppercase tracking-[0.22em] text-white/50">
-                {items.length + 1} links
-              </p>
-            </div>
-            <span className="rounded-full border border-white/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-white/60">
-              {common?.open ?? "Open"}
-            </span>
-          </summary>
-          <nav className="mt-3 grid gap-2 rounded-2xl border border-white/10 bg-black/35 p-3">
-            {items.map((item) => (
+        {!isAdminRoute ? (
+          <details className="mt-4 lg:hidden">
+            <summary className="flex cursor-pointer list-none items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-left [&::-webkit-details-marker]:hidden">
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-gold">
+                  {common?.menu ?? "Menu"}
+                </p>
+                <p className="mt-1 text-xs uppercase tracking-[0.22em] text-white/50">
+                  {items.length + 1} links
+                </p>
+              </div>
+              <span className="rounded-full border border-white/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-white/60">
+                {common?.open ?? "Open"}
+              </span>
+            </summary>
+            <nav className="mt-3 grid gap-2 rounded-2xl border border-white/10 bg-black/35 p-3">
+              {items.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className="rounded-2xl border border-white/10 px-4 py-3 text-xs font-semibold uppercase tracking-[0.2em] text-white/75"
+                >
+                  {item.label}
+                </Link>
+              ))}
               <Link
-                key={item.href}
-                href={item.href}
-                className="rounded-2xl border border-white/10 px-4 py-3 text-xs font-semibold uppercase tracking-[0.2em] text-white/75"
+                href={`/${locale}/admin`}
+                className="rounded-2xl border border-gold/40 px-4 py-3 text-xs font-semibold uppercase tracking-[0.2em] text-gold"
               >
-                {item.label}
+                {nav.admin}
               </Link>
-            ))}
-            <Link
-              href={`/${locale}/admin`}
-              className="rounded-2xl border border-gold/40 px-4 py-3 text-xs font-semibold uppercase tracking-[0.2em] text-gold"
-            >
-              {nav.admin}
-            </Link>
-          </nav>
-        </details>
+            </nav>
+          </details>
+        ) : null}
       </div>
     </header>
   );

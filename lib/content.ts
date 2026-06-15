@@ -1,3 +1,5 @@
+import { unstable_cache } from "next/cache";
+
 import {
   galleries as seedGalleries,
   games as seedGames,
@@ -704,9 +706,35 @@ async function loadFromSupabase() {
   } satisfies SiteData;
 }
 
+const loadFromSupabaseCached = unstable_cache(loadFromSupabase, ["site-data"], {
+  tags: ["site-data"],
+  revalidate: 300
+});
+
+const loadSiteSettingsFromSupabase = unstable_cache(
+  async (): Promise<SiteSettings | null> => {
+    const client = createAdminClient();
+    if (!client) {
+      return null;
+    }
+
+    const { data, error } = await client.from("site_settings").select("*").eq("id", "primary").maybeSingle();
+    if (error) {
+      return null;
+    }
+
+    return mapSiteSettings(data);
+  },
+  ["site-settings"],
+  {
+    tags: ["site-settings"],
+    revalidate: 300
+  }
+);
+
 export async function getSiteData(): Promise<SiteData> {
   if (isSupabaseConfigured()) {
-    const remote = await loadFromSupabase();
+    const remote = await loadFromSupabaseCached();
     if (remote) {
       return remote;
     }
@@ -728,6 +756,17 @@ export async function getSiteData(): Promise<SiteData> {
     posts: seedPosts,
     galleries: seedGalleries
   };
+}
+
+export async function getSiteSettings(): Promise<SiteSettings> {
+  if (isSupabaseConfigured()) {
+    const remote = await loadSiteSettingsFromSupabase();
+    if (remote) {
+      return remote;
+    }
+  }
+
+  return seedSiteSettings;
 }
 
 export async function getHomePayload(locale: Locale, squadParam?: string, seasonParam?: string) {

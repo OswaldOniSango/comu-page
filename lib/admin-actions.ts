@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { fromLocalDateTimeInput } from "@/lib/i18n";
@@ -176,7 +176,12 @@ function getErrorRedirectTo(formData: FormData) {
   return value ? String(value) : null;
 }
 
-async function revalidateAll(locale: Locale) {
+async function revalidateAll(locale: Locale, options?: { includeSettings?: boolean }) {
+  revalidateTag("site-data");
+  if (options?.includeSettings) {
+    revalidateTag("site-settings");
+  }
+
   revalidatePath(`/${locale}`);
   revalidatePath(`/${locale}/roster`);
   revalidatePath(`/${locale}/games`);
@@ -184,6 +189,18 @@ async function revalidateAll(locale: Locale) {
   revalidatePath(`/${locale}/gallery`);
   revalidatePath(`/${locale}/about`);
   revalidatePath(`/${locale}/admin`);
+}
+
+function revalidateScorebookRelated(locale: Locale, gameId: string) {
+  revalidateTag("site-data");
+  revalidatePath(`/${locale}`);
+  revalidatePath(`/${locale}/roster`);
+  revalidatePath(`/${locale}/games`);
+  revalidatePath(`/${locale}/about`);
+  revalidatePath(`/${locale}/admin`);
+  revalidatePath(`/${locale}/admin/stats`);
+  revalidatePath(`/${locale}/admin/games`);
+  revalidatePath(`/${locale}/admin/games/${gameId}/scorebook`);
 }
 
 function maybeRedirect(redirectTo: string | null) {
@@ -344,45 +361,70 @@ function hasPitchingStats(row?: PlayerSeasonStatsRow) {
   );
 }
 
-async function resequenceGameEvents(
+async function normalizeGameEvents(
   client: NonNullable<ReturnType<typeof createAdminClient>>,
   gameId: string
 ) {
   const { data } = await client
     .from("game_batting_events")
-    .select("id")
+    .select("id, inning_number, event_code, runner_advances, sequence_no, outs_before")
     .eq("game_id", gameId)
     .order("sequence_no", { ascending: true });
 
-  for (const [index, event] of (data ?? []).entries()) {
-    await client.from("game_batting_events").update({ sequence_no: index + 1 }).eq("id", event.id);
+  const rows =
+    (data as Array<{
+      id: string;
+      inning_number: number;
+      event_code: ScorebookEventCode;
+      runner_advances: RunnerAdvance[] | null;
+      sequence_no: number;
+      outs_before: number;
+    }> | null | undefined) ?? [];
+
+  if (!rows.length) {
+    return;
   }
-}
 
-async function recomputeGameEventOutsBefore(
-  client: NonNullable<ReturnType<typeof createAdminClient>>,
-  gameId: string
-) {
-  const { data } = await client
-    .from("game_batting_events")
-    .select("id, inning_number, event_code, runner_advances")
-    .eq("game_id", gameId)
-    .order("inning_number", { ascending: true })
-    .order("sequence_no", { ascending: true });
+  const nextById = new Map(
+    rows.map((row, index) => [
+      row.id,
+      {
+        id: row.id,
+        sequence_no: index + 1,
+        outs_before: row.outs_before
+      }
+    ])
+  );
 
   const outsByInning = new Map<number, number>();
+  [...rows]
+    .sort((a, b) => a.inning_number - b.inning_number || a.sequence_no - b.sequence_no)
+    .forEach((row) => {
+      const inningNumber = Number(row.inning_number);
+      const outsBefore = outsByInning.get(inningNumber) ?? 0;
+      const outsAdded = getOutsAdded({
+        eventCode: row.event_code,
+        runnerAdvances: row.runner_advances ?? []
+      });
+      const nextOuts = outsBefore + outsAdded >= 3 ? 0 : outsBefore + outsAdded;
 
-  for (const event of data ?? []) {
-    const inningNumber = Number(event.inning_number);
-    const outsBefore = outsByInning.get(inningNumber) ?? 0;
-    const outsAdded = getOutsAdded({
-      eventCode: event.event_code as ScorebookEventCode,
-      runnerAdvances: (event.runner_advances ?? []) as RunnerAdvance[]
+      const current = nextById.get(row.id);
+      if (current) {
+        current.outs_before = outsBefore;
+      }
+      outsByInning.set(inningNumber, nextOuts);
     });
-    const nextOuts = outsBefore + outsAdded >= 3 ? 0 : outsBefore + outsAdded;
 
-    await client.from("game_batting_events").update({ outs_before: outsBefore }).eq("id", event.id);
-    outsByInning.set(inningNumber, nextOuts);
+  const updates = [...nextById.values()].filter((row) => {
+    const original = rows.find((item) => item.id === row.id);
+    return (
+      original &&
+      (original.sequence_no !== row.sequence_no || Number(original.outs_before || 0) !== row.outs_before)
+    );
+  });
+
+  if (updates.length) {
+    await client.from("game_batting_events").upsert(updates, { onConflict: "id" });
   }
 }
 
@@ -1114,11 +1156,9 @@ export async function saveGameBattingEventAction(formData: FormData) {
     });
   }
 
-  await resequenceGameEvents(client, gameId);
-  await recomputeGameEventOutsBefore(client, gameId);
+  await normalizeGameEvents(client, gameId);
   await recomputeScorebookDerivedState(client, { gameId, seasonId, squadId });
-  await revalidateAll(locale);
-  revalidateScorebook(locale, gameId);
+  revalidateScorebookRelated(locale, gameId);
   maybeRedirect(redirectTo);
 }
 
@@ -1142,11 +1182,9 @@ export async function deleteGameBattingEventAction(formData: FormData) {
   }
 
   await client.from("game_batting_events").delete().eq("id", id);
-  await resequenceGameEvents(client, gameId);
-  await recomputeGameEventOutsBefore(client, gameId);
+  await normalizeGameEvents(client, gameId);
   await recomputeScorebookDerivedState(client, { gameId, seasonId, squadId });
-  await revalidateAll(locale);
-  revalidateScorebook(locale, gameId);
+  revalidateScorebookRelated(locale, gameId);
   maybeRedirect(redirectTo);
 }
 
@@ -1210,8 +1248,7 @@ export async function saveOpponentLinescoreAction(formData: FormData) {
   }
 
   await recomputeScorebookDerivedState(client, { gameId, seasonId, squadId });
-  await revalidateAll(locale);
-  revalidateScorebook(locale, gameId);
+  revalidateScorebookRelated(locale, gameId);
   maybeRedirect(redirectTo);
 }
 
@@ -1256,8 +1293,8 @@ export async function saveGameLineupAction(formData: FormData) {
     );
   }
 
-  await revalidateAll(locale);
-  revalidateScorebook(locale, gameId);
+  revalidatePath(`/${locale}/admin/games`);
+  revalidatePath(`/${locale}/admin/games/${gameId}/scorebook`);
   maybeRedirect(redirectTo);
 }
 
@@ -1882,5 +1919,5 @@ export async function saveSiteSettingsAction(formData: FormData) {
     { onConflict: "id" }
   );
 
-  await revalidateAll(locale);
+  await revalidateAll(locale, { includeSettings: true });
 }
