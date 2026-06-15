@@ -35,7 +35,10 @@ export function SiteHeader({ locale, nav, common }: Props) {
     <header className="sticky top-0 z-40 overflow-x-clip border-b border-white/10 bg-black/65 backdrop-blur-xl">
       <div className="mx-auto max-w-7xl min-w-0 px-4 py-3 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between gap-4">
-          <Link href={`/${locale}`} className="flex min-w-0 items-center gap-3">
+          <Link
+            href={`/${locale}`}
+            className="flex min-w-0 items-center gap-3 lg:min-w-[320px] lg:flex-[0_0_320px] xl:min-w-[360px] xl:flex-[0_0_360px]"
+          >
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gold text-lg font-black text-ink sm:h-11 sm:w-11 sm:text-xl">
               C
             </div>
@@ -49,16 +52,19 @@ export function SiteHeader({ locale, nav, common }: Props) {
             </div>
           </Link>
 
-          <nav className="hidden items-center gap-6 lg:flex">
+          <nav className="hidden min-w-0 flex-1 items-center justify-center gap-4 xl:gap-6 lg:flex">
             {items.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
-                className="text-sm font-semibold uppercase tracking-[0.24em] text-white/70 hover:text-gold"
+                className="text-xs font-semibold uppercase tracking-[0.2em] text-white/70 hover:text-gold xl:text-sm xl:tracking-[0.24em]"
               >
                 {item.label}
               </Link>
             ))}
+          </nav>
+
+          <div className="hidden shrink-0 items-center gap-3 lg:flex">
             <Link
               href={`/${locale}/admin`}
               className="rounded-full border border-gold/40 px-4 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-gold hover:bg-gold hover:text-ink"
@@ -66,7 +72,7 @@ export function SiteHeader({ locale, nav, common }: Props) {
               {nav.admin}
             </Link>
             <LocaleSwitcher currentLocale={locale} />
-          </nav>
+          </div>
 
           <div className="lg:hidden">
             <LocaleSwitcher currentLocale={locale} />
