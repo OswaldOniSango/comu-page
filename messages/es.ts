@@ -30,6 +30,7 @@ const es = {
     readMore: "Leer mas",
     explore: "Explorar",
     season: "Temporada",
+    category: "Categoria",
     english: "English",
     spanish: "Espanol",
     record: "Record",

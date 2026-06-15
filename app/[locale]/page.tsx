@@ -5,10 +5,9 @@ import { GalleryCard } from "@/components/gallery-card";
 import { GameCard } from "@/components/game-card";
 import { PlayerCard } from "@/components/player-card";
 import { PostCard } from "@/components/post-card";
+import { PublicFilters } from "@/components/public-filters";
 import { SectionHeading } from "@/components/section-heading";
-import { SeasonSwitch } from "@/components/season-switch";
 import { StatCard } from "@/components/stat-card";
-import { SquadSwitch } from "@/components/squad-switch";
 import { getHomePayload, localizeText } from "@/lib/content";
 import { formatDate, isLocale } from "@/lib/i18n";
 import { notFound } from "next/navigation";
@@ -71,17 +70,14 @@ export default async function HomePage({
                 {dictionary.home.viewCalendar}
               </Link>
             </div>
-            <SeasonSwitch
+            <PublicFilters
               basePath={`/${locale}`}
               seasons={seasons}
-              selectedSeasonId={activeSeason.id}
-              extraParams={{ squad: selectedSquad.id }}
-            />
-            <SquadSwitch
-              basePath={`/${locale}`}
               squads={squads}
+              selectedSeasonId={activeSeason.id}
               selectedSquadId={selectedSquad.id}
-              extraParams={{ season: activeSeason.id }}
+              seasonLabel={dictionary.common.season}
+              squadLabel={dictionary.common.category}
             />
             <div className="grid gap-4 text-left sm:grid-cols-3">
               <StatCard label={dictionary.common.record} value={`${teamStats.wins}-${teamStats.losses}`} accent />

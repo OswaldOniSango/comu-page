@@ -30,6 +30,7 @@ const en = {
     readMore: "Read more",
     explore: "Explore",
     season: "Season",
+    category: "Category",
     english: "English",
     spanish: "Spanish",
     record: "Record",
