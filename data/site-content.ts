@@ -15,12 +15,12 @@ export const siteSettings: SiteSettings = {
   primaryColor: "#f5c400",
   secondaryColor: "#080808",
   tagline: {
-    es: "Velocidad, disciplina y una identidad que se ve desde la primera entrada.",
-    en: "Speed, discipline and an identity you can read from the first inning."
+    es: "Vamo' comuuuuu!",
+    en: "Vamo' comuuuuu!"
   },
   mission: {
-    es: "Somos un equipo que convierte trabajo diario en un beisbol intenso, elegante y competitivo.",
-    en: "We are a club that turns daily work into intense, elegant and competitive baseball."
+    es: "Somos un equipo de Beisbol amateur de la liga Betropolitana de Besbol Argentina.",
+    en: "We are an amateur baseball team from the Metropolitan Baseball League of Argentina."
   },
   heroImage:
     "https://images.unsplash.com/photo-1508344928928-7165b67de128?auto=format&fit=crop&w=1600&q=80",
