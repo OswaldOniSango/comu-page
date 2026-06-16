@@ -1,5 +1,4 @@
-import { SeasonSwitch } from "@/components/season-switch";
-import { SquadSwitch } from "@/components/squad-switch";
+import { PublicFilters } from "@/components/public-filters";
 import { RosterGrid } from "@/components/roster-grid";
 import { SectionHeading } from "@/components/section-heading";
 import { getRosterPayload, localizeText } from "@/lib/content";
@@ -29,17 +28,14 @@ export default async function RosterPage({
         title={`${dictionary.roster.title} ${data.selectedSquad.code} • ${data.activeSeason.label}`}
         body={`${dictionary.roster.subtitle} ${localizeText(locale, data.selectedSquad.name)}.`}
       />
-      <SeasonSwitch
+      <PublicFilters
         basePath={`/${locale}/roster`}
         seasons={data.seasons}
-        selectedSeasonId={data.activeSeason.id}
-        extraParams={{ squad: data.selectedSquad.id }}
-      />
-      <SquadSwitch
-        basePath={`/${locale}/roster`}
         squads={data.squads}
+        selectedSeasonId={data.activeSeason.id}
         selectedSquadId={data.selectedSquad.id}
-        extraParams={{ season: data.activeSeason.id }}
+        seasonLabel={dictionary.common.season}
+        squadLabel={dictionary.common.category}
       />
       <RosterGrid
         locale={locale}
