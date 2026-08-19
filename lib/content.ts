@@ -876,12 +876,13 @@ export async function getAdminGameScorebookPayload(gameId: string) {
   }
 
   const roster = sortPlayers(
-    data.players.filter(
-      (player) =>
-        player.assignment.squadId === game.squadId &&
-        player.assignment.seasonId === game.seasonId
-    )
+    data.players
+      .filter((player) => player.assignment.seasonId === game.seasonId && player.assignment.squadId === game.squadId && player.assignment.status === "published")
+      .filter((player, index, list) => list.findIndex((candidate) => candidate.id === player.id) === index)
   );
+  const previousGames = data.games
+    .filter((candidate) => candidate.id !== game.id && candidate.squadId === game.squadId && candidate.startsAt < game.startsAt)
+    .sort((a, b) => b.startsAt.localeCompare(a.startsAt));
 
   if (!isSupabaseConfigured()) {
     const comuRunsByInning = deriveRunsByInning([]);
@@ -889,6 +890,7 @@ export async function getAdminGameScorebookPayload(gameId: string) {
       game,
       roster,
       lineup: [],
+      previousLineups: [],
       lineupRoster: roster,
       gameBattingLines: {},
       comuRunsByInning,
@@ -901,6 +903,7 @@ export async function getAdminGameScorebookPayload(gameId: string) {
       game: Game;
       roster: Player[];
       lineup: GameLineupEntry[];
+      previousLineups: Array<{ gameId: string; opponent: string; startsAt: string; seasonLabel: string; entries: GameLineupEntry[] }>;
       lineupRoster: Player[];
       gameBattingLines: Record<string, GameBattingBoxLine>;
       comuRunsByInning: Map<number, number>;
@@ -917,7 +920,7 @@ export async function getAdminGameScorebookPayload(gameId: string) {
     return null;
   }
 
-  const [eventsResult, linesResult, lineupResult, scoreboardResult] = await Promise.all([
+  const [eventsResult, linesResult, lineupResult, scoreboardResult, previousLineupsResult] = await Promise.all([
     client
       .from("game_batting_events")
       .select("*")
@@ -933,7 +936,10 @@ export async function getAdminGameScorebookPayload(gameId: string) {
       .select("*")
       .eq("game_id", gameId)
       .order("batting_order", { ascending: true }),
-    client.from("game_scoreboards").select("*").eq("game_id", gameId).maybeSingle()
+    client.from("game_scoreboards").select("*").eq("game_id", gameId).maybeSingle(),
+    previousGames.length
+      ? client.from("game_lineup_entries").select("*").in("game_id", previousGames.map((candidate) => candidate.id)).order("batting_order", { ascending: true })
+      : Promise.resolve({ data: [] })
   ]);
 
   const events = mapGameBattingEvents(
@@ -945,6 +951,18 @@ export async function getAdminGameScorebookPayload(gameId: string) {
   const lineup = mapLineupEntries(
     (lineupResult.data as GameLineupEntryRow[] | null | undefined) ?? []
   );
+  const previousEntries = mapLineupEntries(
+    (previousLineupsResult.data as GameLineupEntryRow[] | null | undefined) ?? []
+  );
+  const previousLineups = previousGames
+    .map((candidate) => ({
+      gameId: candidate.id,
+      opponent: candidate.opponent,
+      startsAt: candidate.startsAt,
+      seasonLabel: data.seasons.find((season) => season.id === candidate.seasonId)?.label ?? candidate.seasonId,
+      entries: previousEntries.filter((entry) => entry.gameId === candidate.id)
+    }))
+    .filter((candidate) => candidate.entries.length > 0);
   const lineupRoster =
     lineup.length > 0
       ? lineup
@@ -966,6 +984,7 @@ export async function getAdminGameScorebookPayload(gameId: string) {
     game,
     roster,
     lineup,
+    previousLineups,
     lineupRoster,
     gameBattingLines,
     comuRunsByInning,
@@ -978,6 +997,7 @@ export async function getAdminGameScorebookPayload(gameId: string) {
     game: Game;
     roster: Player[];
     lineup: GameLineupEntry[];
+    previousLineups: Array<{ gameId: string; opponent: string; startsAt: string; seasonLabel: string; entries: GameLineupEntry[] }>;
     lineupRoster: Player[];
     gameBattingLines: Record<string, GameBattingBoxLine>;
     comuRunsByInning: Map<number, number>;

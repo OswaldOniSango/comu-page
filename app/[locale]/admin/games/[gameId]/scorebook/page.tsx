@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { AdminModal } from "@/components/admin-modal";
 import { AdminShell } from "@/components/admin-shell";
 import { ScorebookEventForm } from "@/components/scorebook-event-form";
+import { LineupDragDrop } from "@/components/lineup-drag-drop";
 import {
   deleteGameBattingEventAction,
   saveGameLineupAction,
@@ -13,15 +14,9 @@ import { getAdminGameScorebookPayload, localizeText } from "@/lib/content";
 import { formatDate, getDictionary, isLocale } from "@/lib/i18n";
 import { requireAdminSession } from "@/lib/session";
 import { isSupabaseConfigured } from "@/lib/supabase";
-import type { GameBattingEvent, Player } from "@/lib/types";
-
-const DEFENSIVE_POSITIONS = ["P", "C", "1B", "2B", "3B", "SS", "LF", "CF", "RF", "DH"] as const;
+import type { GameBattingEvent } from "@/lib/types";
 
 type ScorebookPayload = NonNullable<Awaited<ReturnType<typeof getAdminGameScorebookPayload>>>;
-
-function getPlayerLabel(player: Player) {
-  return `#${player.assignment.jerseyNumber} ${player.firstName} ${player.lastName}`;
-}
 
 function formatRate(value?: number | null) {
   if (typeof value !== "number") {
@@ -90,71 +85,18 @@ function LineupManagerForm({
   redirectTo,
   gameId,
   roster,
-  lineup
+  lineup,
+  previousLineups
 }: {
   locale: string;
   redirectTo: string;
   gameId: string;
   roster: ScorebookPayload["roster"];
   lineup: ScorebookPayload["lineup"];
+  previousLineups: ScorebookPayload["previousLineups"];
 }) {
   return (
-    <form action={saveGameLineupAction} className="space-y-4">
-      <input type="hidden" name="locale" value={locale} />
-      <input type="hidden" name="redirectTo" value={redirectTo} />
-      <input type="hidden" name="gameId" value={gameId} />
-
-      <div className="grid grid-cols-[52px_minmax(0,1fr)_88px] gap-2 px-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/40">
-        <div>#</div>
-        <div>Jugador</div>
-        <div>Pos</div>
-      </div>
-
-      <div className="space-y-2">
-        {Array.from({ length: 9 }, (_, index) => index + 1).map((spot) => {
-          const entry = lineup.find((item) => item.battingOrder === spot);
-          return (
-            <div key={spot} className="grid grid-cols-[52px_minmax(0,1fr)_88px] gap-2">
-              <div className="flex h-12 items-center justify-center rounded-xl border border-white/10 bg-black/25 text-sm font-semibold text-gold">
-                {spot}
-              </div>
-              <select
-                name={`lineupPlayer_${spot}`}
-                defaultValue={entry?.playerId ?? ""}
-                className="h-12 min-w-0 rounded-xl border border-white/10 bg-black/30 px-4 text-sm text-white outline-none transition focus:border-gold/50"
-              >
-                <option className="bg-ink" value="">
-                  Sin asignar
-                </option>
-                {roster.map((player) => (
-                  <option key={player.id} value={player.id} className="bg-ink">
-                    {getPlayerLabel(player)}
-                  </option>
-                ))}
-              </select>
-              <select
-                name={`lineupPosition_${spot}`}
-                defaultValue={entry?.defensivePosition ?? "DH"}
-                className="h-12 rounded-xl border border-white/10 bg-black/30 px-3 text-sm text-white outline-none transition focus:border-gold/50"
-              >
-                {DEFENSIVE_POSITIONS.map((position) => (
-                  <option key={position} value={position} className="bg-ink">
-                    {position}
-                  </option>
-                ))}
-              </select>
-            </div>
-          );
-        })}
-      </div>
-
-      <button
-        type="submit"
-        className="w-full rounded-full bg-gold px-5 py-3 text-sm font-semibold uppercase tracking-[0.2em] text-ink"
-      >
-        Guardar lineup
-      </button>
-    </form>
+    <LineupDragDrop action={saveGameLineupAction} locale={locale} redirectTo={redirectTo} gameId={gameId} roster={roster} lineup={lineup} previousLineups={previousLineups} />
   );
 }
 
@@ -191,6 +133,7 @@ export default async function AdminGameScorebookPage({
     game,
     roster,
     lineup,
+    previousLineups,
     lineupRoster,
     gameBattingLines,
     comuRunsByInning,
@@ -230,17 +173,11 @@ export default async function AdminGameScorebookPage({
         </div>
       ) : null}
 
-      {game.squadId !== "a1" ? (
-        <div className="panel border-gold/20 bg-gold/10 p-6 text-sm text-white/75">
-          Esta primera versión solo está habilitada para Comu A1.
-        </div>
-      ) : null}
-
       <section className="panel-dark p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="space-y-2">
             <p className="text-xs font-semibold uppercase tracking-[0.22em] text-gold">
-              Scorebook Comu A1
+              Scorebook Comu {game.squadId.toUpperCase()}
             </p>
             <h1 className="font-[var(--font-display)] text-3xl uppercase tracking-[0.05em] text-white md:text-4xl">
               vs {game.opponent}
@@ -407,7 +344,7 @@ export default async function AdminGameScorebookPage({
         </div>
       </section>
 
-      {isSupabaseConfigured() && game.squadId === "a1" ? (
+      {isSupabaseConfigured() ? (
         <div className={`grid gap-6 ${activeTab === "planilla" ? "2xl:grid-cols-[minmax(0,1fr)_340px]" : "xl:grid-cols-[minmax(0,1.3fr)_360px]"}`}>
           <div className="min-w-0 space-y-6">
             {activeTab === "resumen" ? (
@@ -688,7 +625,7 @@ export default async function AdminGameScorebookPage({
                   Lineup del juego
                 </h2>
                 <p className="mt-2 text-sm text-white/65">
-                  Define el orden al bate y la posición defensiva de este partido.
+                  Arrastra jugadores de cualquier liga para definir quién juega este partido y su orden al bate.
                 </p>
               </div>
               <LineupManagerForm
@@ -697,6 +634,7 @@ export default async function AdminGameScorebookPage({
                 gameId={game.id}
                 roster={roster}
                 lineup={lineup}
+                previousLineups={previousLineups}
               />
             </section>
 
@@ -729,7 +667,7 @@ export default async function AdminGameScorebookPage({
 
       {(editingEvent || duplicateEvent || (creatingPlayerId && creatingInningNumber)) &&
       isSupabaseConfigured() &&
-      game.squadId === "a1" ? (
+      true ? (
         <AdminModal
           title={
             editingEvent

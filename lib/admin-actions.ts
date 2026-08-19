@@ -664,6 +664,11 @@ export async function savePlayerAction(formData: FormData) {
   const lastName = String(formData.get("lastName") || "");
   const seasonId = String(formData.get("seasonId") || "season-2026");
   const squadId = String(formData.get("squadId") || "a1");
+  const eligibleSquadIds = [...new Set(formData.getAll("eligibleSquads").map(String).filter(Boolean))];
+  if (!eligibleSquadIds.length) {
+    maybeRedirect(redirectTo);
+    return;
+  }
   const slug = slugify(`${firstName}-${lastName}`);
   const uploadedPhoto = await uploadImageFile(
     client,
@@ -712,18 +717,108 @@ export async function savePlayerAction(formData: FormData) {
       { onConflict: "player_id,locale" }
     );
 
-    await client.from("player_assignments").upsert(
-      {
+    const assignedSquads = eligibleSquadIds.length ? eligibleSquadIds : [squadId];
+    const assignment = {
         player_id: player.id,
         season_id: seasonId,
-        squad_id: squadId,
         jersey_number: Number(formData.get("jerseyNumber") || 0),
         position: String(formData.get("position") || "UTIL"),
         featured: parseBoolean(formData.get("featured")),
         roster_order: Number(formData.get("rosterOrder") || 99),
         status: String(formData.get("status") || "draft") as PublishStatus
-      },
+    };
+
+    await client.from("player_assignments").delete().eq("player_id", player.id).eq("season_id", seasonId);
+    await client.from("player_assignments").upsert(
+      assignedSquads.map((eligibleSquadId) => ({ ...assignment, squad_id: eligibleSquadId })),
       { onConflict: "player_id,season_id,squad_id" }
+    );
+  }
+
+  await revalidateAll(locale);
+  maybeRedirect(redirectTo);
+}
+
+export async function savePlayerEligibilityAction(formData: FormData) {
+  const locale = (formData.get("locale") as Locale) || "es";
+  const redirectTo = getRedirectTo(formData);
+  await ensureAdmin(locale);
+
+  if (!isSupabaseConfigured()) {
+    await revalidateAll(locale);
+    return;
+  }
+
+  const client = createAdminClient();
+  const playerId = String(formData.get("playerId") || "");
+  const seasonId = String(formData.get("seasonId") || "");
+  if (!client || !playerId || !seasonId) return;
+
+  const eligibleSquadIds = [...new Set(formData.getAll("eligibleSquads").map(String).filter(Boolean))];
+  if (!eligibleSquadIds.length) {
+    maybeRedirect(redirectTo);
+    return;
+  }
+  const { data: existingRows } = await client
+    .from("player_assignments")
+    .select("jersey_number, position, featured, roster_order, status")
+    .eq("player_id", playerId)
+    .eq("season_id", seasonId)
+    .limit(1);
+  const source = existingRows?.[0] ?? {
+    jersey_number: 0,
+    position: "UTIL",
+    featured: false,
+    roster_order: 99,
+    status: "published"
+  };
+
+  await client.from("player_assignments").delete().eq("player_id", playerId).eq("season_id", seasonId);
+  if (eligibleSquadIds.length) {
+    await client.from("player_assignments").insert(
+      eligibleSquadIds.map((squadId) => ({
+        player_id: playerId,
+        season_id: seasonId,
+        squad_id: squadId,
+        ...source
+      }))
+    );
+  }
+
+  await revalidateAll(locale);
+  maybeRedirect(redirectTo);
+}
+
+export async function copySeasonRosterAction(formData: FormData) {
+  const locale = (formData.get("locale") as Locale) || "es";
+  const redirectTo = getRedirectTo(formData);
+  await ensureAdmin(locale);
+
+  if (!isSupabaseConfigured()) {
+    await revalidateAll(locale);
+    return;
+  }
+
+  const client = createAdminClient();
+  const sourceSeasonId = String(formData.get("sourceSeasonId") || "");
+  const targetSeasonId = String(formData.get("targetSeasonId") || "");
+  if (!client || !sourceSeasonId || !targetSeasonId || sourceSeasonId === targetSeasonId) {
+    maybeRedirect(redirectTo);
+    return;
+  }
+
+  const { data: sourceAssignments } = await client
+    .from("player_assignments")
+    .select("player_id, squad_id, jersey_number, position, featured, roster_order, status")
+    .eq("season_id", sourceSeasonId);
+
+  if (sourceAssignments?.length) {
+    await client.from("player_assignments").upsert(
+      sourceAssignments.map((assignment) => ({
+        ...assignment,
+        season_id: targetSeasonId
+      })),
+      { onConflict: "player_id,season_id,squad_id", ignoreDuplicates: true }
     );
   }
 
