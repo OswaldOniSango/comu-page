@@ -4,7 +4,8 @@ import { notFound } from "next/navigation";
 import { AdminModal } from "@/components/admin-modal";
 import { AdminShell } from "@/components/admin-shell";
 import { ScorebookEventForm } from "@/components/scorebook-event-form";
-import { LineupDragDrop } from "@/components/lineup-drag-drop";
+import { LineupFieldBuilder } from "@/components/lineup-field-builder";
+import { QuickScoreForm } from "@/components/quick-score-form";
 import {
   deleteGameBattingEventAction,
   saveGameLineupAction,
@@ -96,7 +97,7 @@ function LineupManagerForm({
   previousLineups: ScorebookPayload["previousLineups"];
 }) {
   return (
-    <LineupDragDrop action={saveGameLineupAction} locale={locale} redirectTo={redirectTo} gameId={gameId} roster={roster} lineup={lineup} previousLineups={previousLineups} />
+    <LineupFieldBuilder action={saveGameLineupAction} locale={locale} redirectTo={redirectTo} gameId={gameId} roster={roster} lineup={lineup} previousLineups={previousLineups} />
   );
 }
 
@@ -469,12 +470,17 @@ export default async function AdminGameScorebookPage({
                                         ))}
                                       </div>
                                     ) : (
-                                      <Link
-                                        href={`${basePath}?tab=planilla&createPlayer=${entry.playerId}&createInning=${inning}`}
-                                        className="flex min-h-[56px] items-center justify-center rounded-md border border-dashed border-white/10 text-white/20 transition hover:border-gold/30 hover:text-gold"
-                                      >
-                                        +
-                                      </Link>
+                                      <QuickScoreForm
+                                        locale={locale}
+                                        redirectTo={`${basePath}?tab=planilla`}
+                                        errorRedirectTo={`${basePath}?tab=planilla&createPlayer=${entry.playerId}&createInning=${inning}`}
+                                        advancedHref={`${basePath}?tab=planilla&createPlayer=${entry.playerId}&createInning=${inning}`}
+                                        gameId={game.id}
+                                        seasonId={game.seasonId}
+                                        squadId={game.squadId}
+                                        playerId={entry.playerId}
+                                        inningNumber={inning}
+                                      />
                                     )}
                                   </td>
                                 );

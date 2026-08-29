@@ -1363,7 +1363,7 @@ export async function saveGameLineupAction(formData: FormData) {
   }
 
   const gameId = String(formData.get("gameId") || "");
-  const entries = Array.from({ length: 9 }, (_, index) => index + 1)
+  const entries = Array.from({ length: 10 }, (_, index) => index + 1)
     .map((battingOrder) => ({
       battingOrder,
       playerId: String(formData.get(`lineupPlayer_${battingOrder}`) || ""),

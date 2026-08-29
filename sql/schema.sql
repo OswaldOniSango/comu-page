@@ -323,7 +323,7 @@ create table if not exists game_opponent_linescore (
 
 create table if not exists game_lineup_entries (
   game_id uuid not null references games(id) on delete cascade,
-  batting_order integer not null check (batting_order between 1 and 9),
+  batting_order integer not null check (batting_order between 1 and 10),
   player_id uuid not null references players(id) on delete cascade,
   defensive_position text not null default 'DH',
   created_at timestamptz not null default now(),
@@ -333,6 +333,11 @@ create table if not exists game_lineup_entries (
 );
 
 create index if not exists game_lineup_entries_game_idx on game_lineup_entries (game_id, batting_order);
+
+alter table if exists game_lineup_entries
+  drop constraint if exists game_lineup_entries_batting_order_check;
+alter table if exists game_lineup_entries
+  add constraint game_lineup_entries_batting_order_check check (batting_order between 1 and 10);
 
 create table if not exists game_scoreboards (
   game_id uuid primary key references games(id) on delete cascade,
